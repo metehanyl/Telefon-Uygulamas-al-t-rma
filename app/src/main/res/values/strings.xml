@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ezan Vakti</string>
+    <string name="notification_channel_name">Namaz Vakti Bildirimleri</string>
+    <string name="notification_channel_description">Her namaz vakti girdiğinde bildirim gönderir</string>
+    <string name="notification_title">%1$s vakti girdi</string>
+    <string name="notification_text">Namaz vakti girdi.</string>
+
+    <string name="screen_title">Namaz Vakitleri</string>
+    <string name="action_refresh">Yenile</string>
+    <string name="action_change_location">Konumu değiştir</string>
+
+    <string name="offline_banner">Çevrimdışı: son kaydedilen vakitler gösteriliyor</string>
+    <string name="stale_banner">Bu vakitler güncel olmayabilir. İnternete bağlanıp yenileyin.</string>
+    <string name="loading_label">Konum ve vakitler getiriliyor…</string>
+    <string name="action_retry">Tekrar dene</string>
+
+    <string name="notifications_toggle_title">Vakit bildirimleri</string>
+    <string name="notifications_toggle_desc">Her namaz vaktinde bildirim al</string>
+
+    <string name="manual_location_title">Şehir / ilçe seç</string>
+    <string name="select_city_label">Şehir seçin</string>
+    <string name="select_district_label">İlçe seçin</string>
+    <string name="action_save">Kaydet</string>
+    <string name="action_cancel">Vazgeç</string>
+    <string name="action_use_automatic_location">Otomatik konumu kullan</string>
+
+    <string name="location_label">%1$s / %2$s</string>
+    <string name="next_vakit_label">Sıradaki: %1$s · %2$s</string>
+    <string name="last_updated_label">Son güncelleme: %1$s</string>
+    <string name="empty_state_label">Vakitleri görmek için konum izni verin ya da şehrinizi seçin.</string>
+    <string name="grant_permission_label">Konum izni ver</string>
+</resources>
