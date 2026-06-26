@@ -1,1 +1,1 @@
-# Telefon-Uygulamas-al-t-rma
+# Telefon-Uygulamasi Calistirma
