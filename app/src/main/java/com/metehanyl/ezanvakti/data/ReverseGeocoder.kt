@@ -42,7 +42,7 @@ private fun deviceGeocode(context: Context, latitude: Double, longitude: Double)
 private fun networkGeocode(latitude: Double, longitude: Double): GeoArea =
     try {
         val url = "https://nominatim.openstreetmap.org/reverse?format=jsonv2" +
-            "&lat=$latitude&lon=$longitude&zoom=10&addressdetails=1&accept-language=tr"
+            "&lat=$latitude&lon=$longitude&zoom=14&addressdetails=1&accept-language=tr"
         require(url.startsWith("https://")) { "Sadece HTTPS istekleri desteklenir: $url" }
 
         val connection = URL(url).openConnection() as HttpURLConnection
@@ -60,10 +60,12 @@ private fun networkGeocode(latitude: Double, longitude: Double): GeoArea =
             if (address == null) GeoArea(null, null)
             else GeoArea(
                 il = address.optString("state").ifBlank { null },
-                ilce = address.optString("county").ifBlank { null }
-                    ?: address.optString("town").ifBlank { null }
+                // Türkiye'de ilçe seviyesi OSM'de genelde city_district/district olarak etiketlenir;
+                // town/suburb/county daha çok mahalle ya da farklı ülke şemalarına ait, son çare olarak kullanılır.
+                ilce = address.optString("city_district").ifBlank { null }
                     ?: address.optString("district").ifBlank { null }
-                    ?: address.optString("city_district").ifBlank { null }
+                    ?: address.optString("county").ifBlank { null }
+                    ?: address.optString("town").ifBlank { null }
                     ?: address.optString("suburb").ifBlank { null }
             )
         } finally {

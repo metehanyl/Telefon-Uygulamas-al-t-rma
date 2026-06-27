@@ -36,4 +36,18 @@
     <string name="data_source_label">Vakitler %1$s adresinden (Diyanet ayna servisi) HTTPS ile şifreli olarak çekilir.</string>
     <string name="esma_section_title">Esmâ-ül Hüsnâ</string>
     <string name="esma_section_subtitle">Allah\'ın 99 güzel ismi ve kısa anlamları</string>
+
+    <string name="countdown_section_label">Sıradaki Vakit</string>
+    <string name="unit_hours">Saat</string>
+    <string name="unit_minutes">Dakika</string>
+    <string name="unit_seconds">Saniye</string>
+    <string name="badge_now">Şu An</string>
+    <string name="badge_next">Sonraki</string>
+    <string name="vakit_subtitle_imsak">Sabah namazı</string>
+    <string name="vakit_subtitle_gunes">Güneş doğuşu</string>
+    <string name="vakit_subtitle_ogle">Öğle namazı</string>
+    <string name="vakit_subtitle_ikindi">İkindi namazı</string>
+    <string name="vakit_subtitle_aksam">Akşam namazı</string>
+    <string name="vakit_subtitle_yatsi">Yatsı namazı</string>
+    <string name="diyanet_method_footer">Diyanet İşleri Başkanlığı yöntemi</string>
 </resources>

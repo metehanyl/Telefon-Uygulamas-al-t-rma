@@ -17,18 +17,20 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
 private val DarkColors = darkColorScheme(
-    primary = Teal200,
-    onPrimary = DarkOnPrimary,
-    secondary = Amber400,
-    background = DarkBackground,
-    surface = DarkSurface,
-    primaryContainer = DarkPrimaryContainer,
-    onPrimaryContainer = DarkOnPrimaryContainer,
-    surfaceVariant = DarkSurfaceVariant,
-    onSurfaceVariant = DarkOnSurfaceVariant,
-    outline = DarkOutline,
-    secondaryContainer = DarkSecondaryContainer,
-    onSecondaryContainer = DarkOnSecondaryContainer
+    primary = CrescentGold,
+    onPrimary = NavyBackground,
+    secondary = CrescentGold,
+    background = NavyBackground,
+    onBackground = CreamText,
+    surface = NavyCard,
+    onSurface = CreamText,
+    primaryContainer = NavyCard,
+    onPrimaryContainer = CreamText,
+    surfaceVariant = NavyInsetBox,
+    onSurfaceVariant = MutedNavyGray,
+    outline = NavyOutline,
+    secondaryContainer = NavyInsetBox,
+    onSecondaryContainer = CrescentGold
 )
 
 private val LightColors = lightColorScheme(

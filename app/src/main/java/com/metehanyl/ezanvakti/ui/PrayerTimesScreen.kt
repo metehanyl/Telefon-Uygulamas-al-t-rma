@@ -1,14 +1,19 @@
 package com.metehanyl.ezanvakti.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,15 +21,22 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.NightlightRound
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.WbCloudy
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.WbTwilight
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,12 +54,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.metehanyl.ezanvakti.PrayerUiState
 import com.metehanyl.ezanvakti.R
 import com.metehanyl.ezanvakti.data.DiyanetApi
@@ -108,18 +122,11 @@ fun PrayerTimesScreen(
             )
         }
     ) { padding ->
-        val backgroundBrush = Brush.verticalGradient(
-            colors = listOf(
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
-                MaterialTheme.colorScheme.background
-            )
-        )
-
         LazyColumn(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .background(backgroundBrush)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -128,6 +135,10 @@ fun PrayerTimesScreen(
             item { CountdownCard(bundle) }
 
             item { LocationRow(bundle) }
+
+            if (bundle != null) {
+                item { SectionDivider() }
+            }
 
             if (uiState.isOffline || (!uiState.isShowingExactToday && bundle != null)) {
                 item { OfflineBanner(isStale = !uiState.isShowingExactToday) }
@@ -181,7 +192,7 @@ private fun CountdownCard(bundle: PrayerBundle?) {
     val vakitler = day.toList()
     val nextIndex = remember(vakitler, nowMillis) { nextVakitIndex(vakitler) }
     val (nextName, nextTime) = vakitler[nextIndex]
-    val remainingText = remember(vakitler, nowMillis) { remainingTimeText(vakitler, nextIndex) }
+    val (hours, minutes, seconds) = remember(vakitler, nowMillis) { remainingTimeParts(vakitler, nextIndex) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -189,43 +200,87 @@ private fun CountdownCard(bundle: PrayerBundle?) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 22.dp, horizontal = 16.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Box(modifier = Modifier.size(40.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_mosque),
+                    Icons.Filled.PlayArrow,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(40.dp)
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(14.dp)
                 )
-                Icon(
-                    painter = painterResource(R.drawable.ic_crescent),
-                    contentDescription = null,
-                    tint = CrescentGold,
-                    modifier = Modifier.size(40.dp)
+                Text(
+                    text = stringResource(R.string.countdown_section_label).uppercase(Locale("tr", "TR")),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
             Text(
-                text = stringResource(R.string.countdown_label, nextName),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = remainingText,
+                text = nextName,
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
             Text(
-                text = stringResource(R.string.next_vakit_label, nextName, nextTime),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                text = nextTime,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                CountdownBox(value = hours, label = stringResource(R.string.unit_hours))
+                ColonSeparator()
+                CountdownBox(value = minutes, label = stringResource(R.string.unit_minutes))
+                ColonSeparator()
+                CountdownBox(value = seconds, label = stringResource(R.string.unit_seconds))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColonSeparator() {
+    Text(
+        text = ":",
+        style = MaterialTheme.typography.headlineMedium,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary
+    )
+}
+
+@Composable
+private fun CountdownBox(value: String, label: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(64.dp)
+                .height(56.dp)
+                .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(14.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
             )
         }
+        Text(
+            text = label.uppercase(Locale("tr", "TR")),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -241,6 +296,24 @@ private fun LocationRow(bundle: PrayerBundle?) {
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
+}
+
+@Composable
+private fun SectionDivider() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outline)
+        Icon(
+            painter = painterResource(R.drawable.ic_islamic_star),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(14.dp)
+        )
+        HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outline)
+    }
 }
 
 @Composable
@@ -296,30 +369,135 @@ private fun PrayerTimesCard(bundle: PrayerBundle) {
     val (day, _) = bundle.todayOrClosest()
     val vakitler = day.toList()
     val nextIndex = remember(vakitler) { nextVakitIndex(vakitler) }
+    val currentIndex = remember(vakitler, nextIndex) { (nextIndex - 1 + vakitler.size) % vakitler.size }
 
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            vakitler.forEachIndexed { index, (name, time) ->
-                VakitRow(name = name, time = time, highlighted = index == nextIndex)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        vakitler.forEachIndexed { index, (name, time) ->
+            VakitRow(
+                name = name,
+                time = time,
+                isCurrent = index == currentIndex,
+                isNext = index == nextIndex
+            )
+        }
+    }
+}
+
+private data class VakitVisual(
+    val icon: ImageVector,
+    val subtitleRes: Int,
+    val background: Brush,
+    val iconTint: Color
+)
+
+private fun vakitVisual(name: String): VakitVisual = when (name) {
+    "İmsak" -> VakitVisual(
+        icon = Icons.Filled.NightlightRound,
+        subtitleRes = R.string.vakit_subtitle_imsak,
+        background = Brush.linearGradient(listOf(Color(0xFF1B2A4A), Color(0xFF111A30))),
+        iconTint = Color(0xFFB9C6E8)
+    )
+    "Güneş" -> VakitVisual(
+        icon = Icons.Filled.WbTwilight,
+        subtitleRes = R.string.vakit_subtitle_gunes,
+        background = Brush.linearGradient(listOf(Color(0xFFFF8A65), Color(0xFFFFC371))),
+        iconTint = Color(0xFF3A1E0A)
+    )
+    "Öğle" -> VakitVisual(
+        icon = Icons.Filled.WbSunny,
+        subtitleRes = R.string.vakit_subtitle_ogle,
+        background = Brush.linearGradient(listOf(Color(0xFF2F4671), Color(0xFF1B2A4A))),
+        iconTint = Color(0xFFE8B94B)
+    )
+    "İkindi" -> VakitVisual(
+        icon = Icons.Filled.WbCloudy,
+        subtitleRes = R.string.vakit_subtitle_ikindi,
+        background = Brush.linearGradient(listOf(Color(0xFF2F4671), Color(0xFF1B2A4A))),
+        iconTint = Color(0xFFCBD6EE)
+    )
+    "Akşam" -> VakitVisual(
+        icon = Icons.Filled.LocationCity,
+        subtitleRes = R.string.vakit_subtitle_aksam,
+        background = Brush.linearGradient(listOf(Color(0xFFB45B6B), Color(0xFF4B2A53))),
+        iconTint = Color(0xFFFFD9E0)
+    )
+    else -> VakitVisual(
+        icon = Icons.Filled.LocationCity,
+        subtitleRes = R.string.vakit_subtitle_yatsi,
+        background = Brush.linearGradient(listOf(Color(0xFF1A2238), Color(0xFF0A0F1E))),
+        iconTint = Color(0xFF9FB3D9)
+    )
+}
+
+@Composable
+private fun VakitRow(name: String, time: String, isCurrent: Boolean, isNext: Boolean) {
+    val visual = remember(name) { vakitVisual(name) }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isCurrent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp, horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(40.dp)
+                    .background(
+                        color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        shape = RoundedCornerShape(2.dp)
+                    )
+            )
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(visual.background, RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(visual.icon, contentDescription = null, tint = visual.iconTint, modifier = Modifier.size(26.dp))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = stringResource(visual.subtitleRes),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(text = time, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                when {
+                    isCurrent -> StatusBadge(text = stringResource(R.string.badge_now), filled = true)
+                    isNext -> StatusBadge(text = stringResource(R.string.badge_next), filled = false)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun VakitRow(name: String, time: String, highlighted: Boolean) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                color = if (highlighted) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                shape = RoundedCornerShape(8.dp)
-            )
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(text = name, style = MaterialTheme.typography.bodyLarge)
-        Text(text = time, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+private fun StatusBadge(text: String, filled: Boolean) {
+    val color = MaterialTheme.colorScheme.primary
+    val shape = RoundedCornerShape(50)
+    val badgeModifier = if (filled) {
+        Modifier.background(color = color, shape = shape)
+    } else {
+        Modifier.border(BorderStroke(1.dp, color), shape)
+    }
+    Box(modifier = badgeModifier.padding(horizontal = 8.dp, vertical = 2.dp)) {
+        Text(
+            text = text.uppercase(Locale("tr", "TR")),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = if (filled) MaterialTheme.colorScheme.background else color
+        )
     }
 }
 
@@ -351,16 +529,26 @@ private fun DataSourceFooter() {
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Row(
+        Column(
             modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = stringResource(R.string.data_source_label, DiyanetApi.DATA_SOURCE_HOST),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Text(
-                text = stringResource(R.string.data_source_label, DiyanetApi.DATA_SOURCE_HOST),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = stringResource(R.string.diyanet_method_footer),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 32.dp)
             )
         }
     }
@@ -379,7 +567,7 @@ private fun nextVakitIndex(vakitler: List<Pair<String, String>>): Int {
     return if (index == -1) 0 else index
 }
 
-private fun remainingTimeText(vakitler: List<Pair<String, String>>, nextIndex: Int): String {
+private fun remainingTimeParts(vakitler: List<Pair<String, String>>, nextIndex: Int): Triple<String, String, String> {
     val now = Calendar.getInstance()
     val target = Calendar.getInstance()
     val (_, time) = vakitler[nextIndex]
@@ -397,7 +585,12 @@ private fun remainingTimeText(vakitler: List<Pair<String, String>>, nextIndex: I
     val hours = totalSeconds / 3600
     val minutes = (totalSeconds % 3600) / 60
     val seconds = totalSeconds % 60
-    return String.format(Locale("tr", "TR"), "%02d:%02d:%02d", hours, minutes, seconds)
+    val locale = Locale("tr", "TR")
+    return Triple(
+        String.format(locale, "%02d", hours),
+        String.format(locale, "%02d", minutes),
+        String.format(locale, "%02d", seconds)
+    )
 }
 
 private fun formatTimestamp(epochMillis: Long): String =

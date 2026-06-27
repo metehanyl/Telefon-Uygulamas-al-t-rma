@@ -64,9 +64,10 @@ class PrayerRepository(private val context: Context) {
         val districts = DiyanetApi.getDistricts(city.id)
         if (districts.isEmpty()) return null
         val ilceKey = ilce?.let { trKey(it) }
-        val district = (ilceKey?.let { key -> districts.firstOrNull { trKey(it.name) == key } })
-            ?: districts.firstOrNull { trKey(it.name).contains("MERKEZ") }
-            ?: districts.first()
+        val district = ilceKey?.let { key ->
+            districts.firstOrNull { trKey(it.name) == key }
+                ?: districts.firstOrNull { trKey(it.name).contains(key) || key.contains(trKey(it.name)) }
+        } ?: return null
 
         return SelectedLocation(
             sehirId = city.id,
