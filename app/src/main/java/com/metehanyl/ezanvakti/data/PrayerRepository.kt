@@ -71,36 +71,56 @@ class PrayerRepository(private val context: Context) {
     private suspend fun resolveCityAndDistrict(il: String, ilceCandidates: List<String>): LocationLookup {
         val ilKey = trKey(il)
         val cities = DiyanetApi.getCities()
-        val city = cities.firstOrNull { trKey(it.name) == ilKey }
-            ?: cities.firstOrNull { trKey(it.name).contains(ilKey) || ilKey.contains(trKey(it.name)) }
-            ?: return LocationLookup.Failure("şehir bulunamadı: $il")
+        val matchingCities = cities.filter { trKey(it.name) == ilKey }
+            .ifEmpty { cities.filter { trKey(it.name).contains(ilKey) || ilKey.contains(trKey(it.name)) } }
 
-        val districts = DiyanetApi.getDistricts(city.id)
-        if (districts.isEmpty()) return LocationLookup.Failure("${city.name} için ilçe listesi boş döndü")
+        if (matchingCities.isEmpty()) return LocationLookup.Failure("şehir bulunamadı: $il")
 
         val candidateKeys = ilceCandidates.map { trKey(it) }.filter { it.isNotBlank() }
-        val district = candidateKeys.firstNotNullOfOrNull { key ->
-            districts.firstOrNull { trKey(it.name) == key }
-        } ?: candidateKeys.firstNotNullOfOrNull { key ->
-            districts.firstOrNull { trKey(it.name).contains(key) || key.contains(trKey(it.name)) }
-        }
 
-        if (district == null) {
+        // Aynı il adıyla eşleşen birden fazla şehir kaydı olabilir (mirror API'de yinelenen
+        // kayıtlar görülüyor); sadece ilk kaydı kullanmak yerine, hedef ilçeyi içeren kaydı
+        // bulana kadar hepsini dene.
+        var lastFailure: LocationLookup.Failure? = null
+        for (city in matchingCities) {
+            val districts = try {
+                DiyanetApi.getDistricts(city.id)
+            } catch (e: Exception) {
+                lastFailure = LocationLookup.Failure("${city.name} (id=${city.id}) için ilçe listesi alınamadı: ${e.message}")
+                continue
+            }
+
+            if (districts.isEmpty()) {
+                lastFailure = LocationLookup.Failure("${city.name} (id=${city.id}) için ilçe listesi boş döndü")
+                continue
+            }
+
+            val district = candidateKeys.firstNotNullOfOrNull { key ->
+                districts.firstOrNull { trKey(it.name) == key }
+            } ?: candidateKeys.firstNotNullOfOrNull { key ->
+                districts.firstOrNull { trKey(it.name).contains(key) || key.contains(trKey(it.name)) }
+            }
+
+            if (district != null) {
+                return LocationLookup.Success(
+                    SelectedLocation(
+                        sehirId = city.id,
+                        sehirAdi = city.name,
+                        ilceId = district.id,
+                        ilceAdi = district.name
+                    )
+                )
+            }
+
             val candidatesText = if (ilceCandidates.isEmpty()) "aday yok" else ilceCandidates.joinToString("/")
             val officialNames = districts.joinToString(", ") { it.name }
-            return LocationLookup.Failure(
-                "${city.name} ilinde ilçe eşleşmedi, adaylar: $candidatesText. Resmi liste: $officialNames"
+            lastFailure = LocationLookup.Failure(
+                "${city.name} (id=${city.id}) ilinde ilçe eşleşmedi, adaylar: $candidatesText. Resmi liste (${districts.size} ilçe): $officialNames"
             )
         }
 
-        return LocationLookup.Success(
-            SelectedLocation(
-                sehirId = city.id,
-                sehirAdi = city.name,
-                ilceId = district.id,
-                ilceAdi = district.name
-            )
-        )
+        val cityRecordsText = matchingCities.joinToString(", ") { "${it.name}(id=${it.id})" }
+        return lastFailure ?: LocationLookup.Failure("hiçbir şehir kaydında ilçe bulunamadı: $cityRecordsText")
     }
 
     private sealed class LocationLookup {
