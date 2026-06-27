@@ -48,7 +48,8 @@ class MainActivity : ComponentActivity() {
                     onRefresh = { requestLocationPermissionIfNeeded() },
                     onToggleNotifications = { enabled -> onToggleNotifications(enabled) },
                     onOpenLocationPicker = { viewModel.openLocationPicker() },
-                    onToggleDarkTheme = { viewModel.toggleDarkTheme() }
+                    onToggleDarkTheme = { viewModel.toggleDarkTheme() },
+                    onRequestLocationPermission = { requestLocationPermissionIfNeeded() }
                 )
 
                 if (pickerState.isOpen) {

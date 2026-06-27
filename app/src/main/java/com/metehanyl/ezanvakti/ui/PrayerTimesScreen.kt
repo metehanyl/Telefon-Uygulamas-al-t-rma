@@ -1,6 +1,7 @@
 package com.metehanyl.ezanvakti.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
@@ -42,16 +44,21 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -68,6 +75,7 @@ import com.metehanyl.ezanvakti.data.DiyanetApi
 import com.metehanyl.ezanvakti.data.model.ESMA_UL_HUSNA
 import com.metehanyl.ezanvakti.data.model.PrayerBundle
 import com.metehanyl.ezanvakti.ui.theme.CrescentGold
+import com.metehanyl.ezanvakti.ui.theme.LightningYellow
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -81,8 +89,11 @@ fun PrayerTimesScreen(
     onRefresh: () -> Unit,
     onToggleNotifications: (Boolean) -> Unit,
     onOpenLocationPicker: () -> Unit,
-    onToggleDarkTheme: () -> Unit
+    onToggleDarkTheme: () -> Unit,
+    onRequestLocationPermission: () -> Unit
 ) {
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -106,6 +117,14 @@ fun PrayerTimesScreen(
                     }
                 },
                 actions = {
+                    Image(
+                        painter = painterResource(R.drawable.ic_yildirim_logo),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .padding(end = 4.dp)
+                            .size(18.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                    )
                     IconButton(onClick = onToggleDarkTheme) {
                         Icon(
                             if (uiState.darkThemeEnabled) Icons.Default.LightMode else Icons.Default.DarkMode,
@@ -122,55 +141,101 @@ fun PrayerTimesScreen(
             )
         }
     ) { padding ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            val bundle = uiState.bundle
-
-            item { CountdownCard(bundle) }
-
-            item { LocationRow(bundle) }
-
-            if (bundle != null) {
-                item { SectionDivider() }
+            TabRow(selectedTabIndex = selectedTab) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = { Text(stringResource(R.string.tab_vakitler)) }
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = { Text(stringResource(R.string.tab_kible)) }
+                )
+                Tab(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    text = { Text(stringResource(R.string.tab_esma)) }
+                )
             }
 
-            if (uiState.isOffline || (!uiState.isShowingExactToday && bundle != null)) {
-                item { OfflineBanner(isStale = !uiState.isShowingExactToday) }
+            when (selectedTab) {
+                0 -> VakitlerTabContent(uiState, onRefresh, onToggleNotifications)
+                1 -> QiblaScreen(onRequestLocationPermission = onRequestLocationPermission)
+                else -> EsmaTabContent()
             }
+        }
+    }
+}
 
-            uiState.errorMessage?.let { message ->
-                item {
-                    Text(
-                        text = message,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
+@Composable
+private fun VakitlerTabContent(
+    uiState: PrayerUiState,
+    onRefresh: () -> Unit,
+    onToggleNotifications: (Boolean) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        val bundle = uiState.bundle
 
+        item { CountdownCard(bundle) }
+
+        item { LocationRow(bundle) }
+
+        if (bundle != null) {
+            item { SectionDivider() }
+        }
+
+        if (uiState.isOffline || (!uiState.isShowingExactToday && bundle != null)) {
+            item { OfflineBanner(isStale = !uiState.isShowingExactToday) }
+        }
+
+        uiState.errorMessage?.let { message ->
             item {
-                when {
-                    bundle != null -> PrayerTimesCard(bundle)
-                    uiState.isLoading -> LoadingRow()
-                    else -> EmptyStateCard(onRefresh)
-                }
+                Text(
+                    text = message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
+        }
 
-            item { NotificationToggleRow(uiState.notificationsEnabled, onToggleNotifications) }
-
-            item { DataSourceFooter() }
-
-            item { EsmaulHusnaHeader() }
-
-            items(ESMA_UL_HUSNA, key = { it.no }) { esma ->
-                EsmaCard(esma)
+        item {
+            when {
+                bundle != null -> PrayerTimesCard(bundle)
+                uiState.isLoading -> LoadingRow()
+                else -> EmptyStateCard(onRefresh)
             }
+        }
+
+        item { NotificationToggleRow(uiState.notificationsEnabled, onToggleNotifications) }
+
+        item { DataSourceFooter() }
+    }
+}
+
+@Composable
+private fun EsmaTabContent() {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item { EsmaulHusnaHeader() }
+
+        items(ESMA_UL_HUSNA, key = { it.no }) { esma ->
+            EsmaCard(esma)
         }
     }
 }
@@ -199,48 +264,59 @@ private fun CountdownCard(bundle: PrayerBundle?) {
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp, horizontal = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Icon(
-                    Icons.Filled.PlayArrow,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(14.dp)
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(
+                        Icons.Filled.PlayArrow,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.countdown_section_label).uppercase(Locale("tr", "TR")),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Text(
+                    text = nextName,
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
-                    text = stringResource(R.string.countdown_section_label).uppercase(Locale("tr", "TR")),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.sp,
-                    color = MaterialTheme.colorScheme.primary
+                    text = nextTime,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    CountdownBox(value = hours, label = stringResource(R.string.unit_hours))
+                    ColonSeparator()
+                    CountdownBox(value = minutes, label = stringResource(R.string.unit_minutes))
+                    ColonSeparator()
+                    CountdownBox(value = seconds, label = stringResource(R.string.unit_seconds))
+                }
             }
-            Text(
-                text = nextName,
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+            Icon(
+                Icons.Filled.Bolt,
+                contentDescription = null,
+                tint = LightningYellow,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 10.dp, end = 14.dp)
+                    .size(18.dp)
             )
-            Text(
-                text = nextTime,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(14.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                CountdownBox(value = hours, label = stringResource(R.string.unit_hours))
-                ColonSeparator()
-                CountdownBox(value = minutes, label = stringResource(R.string.unit_minutes))
-                ColonSeparator()
-                CountdownBox(value = seconds, label = stringResource(R.string.unit_seconds))
-            }
         }
     }
 }
@@ -263,8 +339,8 @@ private fun CountdownBox(value: String, label: String) {
     ) {
         Box(
             modifier = Modifier
-                .width(64.dp)
-                .height(56.dp)
+                .width(56.dp)
+                .height(48.dp)
                 .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(14.dp)),
             contentAlignment = Alignment.Center
         ) {
@@ -371,7 +447,7 @@ private fun PrayerTimesCard(bundle: PrayerBundle) {
     val nextIndex = remember(vakitler) { nextVakitIndex(vakitler) }
     val currentIndex = remember(vakitler, nextIndex) { (nextIndex - 1 + vakitler.size) % vakitler.size }
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         vakitler.forEachIndexed { index, (name, time) ->
             VakitRow(
                 name = name,
@@ -442,14 +518,14 @@ private fun VakitRow(name: String, time: String, isCurrent: Boolean, isNext: Boo
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp, horizontal = 14.dp),
+                .padding(vertical = 8.dp, horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Box(
                 modifier = Modifier
                     .width(4.dp)
-                    .height(40.dp)
+                    .height(32.dp)
                     .background(
                         color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.Transparent,
                         shape = RoundedCornerShape(2.dp)
@@ -457,11 +533,11 @@ private fun VakitRow(name: String, time: String, isCurrent: Boolean, isNext: Boo
             )
             Box(
                 modifier = Modifier
-                    .size(52.dp)
-                    .background(visual.background, RoundedCornerShape(14.dp)),
+                    .size(42.dp)
+                    .background(visual.background, RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(visual.icon, contentDescription = null, tint = visual.iconTint, modifier = Modifier.size(26.dp))
+                Icon(visual.icon, contentDescription = null, tint = visual.iconTint, modifier = Modifier.size(20.dp))
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)

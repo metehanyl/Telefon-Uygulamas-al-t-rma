@@ -17,6 +17,9 @@ val LightOnSecondaryContainer = Color(0xFF1B3D1F)
 // İslami motifler için vurgu rengi (hilal/yıldız).
 val CrescentGold = Color(0xFFE8B94B)
 
+// Geri sayım kartının köşesindeki yıldırım rozeti için canlı sarı.
+val LightningYellow = Color(0xFFFFD400)
+
 // Lacivert + altın koyu tema (kullanıcının referans tasarımı).
 val NavyBackground = Color(0xFF0A0F1E)
 val NavyCard = Color(0xFF131B2E)
