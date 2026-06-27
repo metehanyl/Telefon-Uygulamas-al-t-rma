@@ -12,7 +12,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Refresh
@@ -62,7 +64,8 @@ fun PrayerTimesScreen(
     uiState: PrayerUiState,
     onRefresh: () -> Unit,
     onToggleNotifications: (Boolean) -> Unit,
-    onOpenLocationPicker: () -> Unit
+    onOpenLocationPicker: () -> Unit,
+    onToggleDarkTheme: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -79,6 +82,12 @@ fun PrayerTimesScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onToggleDarkTheme) {
+                        Icon(
+                            if (uiState.darkThemeEnabled) Icons.Default.LightMode else Icons.Default.DarkMode,
+                            contentDescription = stringResource(R.string.action_toggle_theme)
+                        )
+                    }
                     IconButton(onClick = onOpenLocationPicker) {
                         Icon(Icons.Default.LocationOn, contentDescription = stringResource(R.string.action_change_location))
                     }

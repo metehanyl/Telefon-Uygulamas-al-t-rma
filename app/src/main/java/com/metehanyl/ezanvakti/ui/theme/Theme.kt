@@ -18,16 +18,22 @@ import androidx.core.view.WindowCompat
 
 private val DarkColors = darkColorScheme(
     primary = Teal200,
+    onPrimary = DarkOnPrimary,
     secondary = Amber400,
     background = DarkBackground,
-    surface = DarkSurface
+    surface = DarkSurface,
+    primaryContainer = DarkPrimaryContainer,
+    onPrimaryContainer = DarkOnPrimaryContainer
 )
 
 private val LightColors = lightColorScheme(
-    primary = Teal700,
-    secondary = Amber400,
+    primary = Green700,
+    onPrimary = Color.White,
+    secondary = Green900,
     background = LightBackground,
-    surface = Color.White
+    surface = Color.White,
+    primaryContainer = GreenPrimaryContainer,
+    onPrimaryContainer = GreenOnPrimaryContainer
 )
 
 private val AppShapes = Shapes(

@@ -36,6 +36,13 @@ class AppSettings(context: Context) {
         get() = prefs.getBoolean(KEY_NOTIFICATIONS, false)
         set(value) = prefs.edit().putBoolean(KEY_NOTIFICATIONS, value).apply()
 
+    /** Kullanıcı koyu temayı elle değiştirmediyse [systemDefault] (cihaz teması) kullanılır. */
+    fun isDarkThemeEnabled(systemDefault: Boolean): Boolean =
+        prefs.getBoolean(KEY_DARK_THEME, systemDefault)
+
+    fun setDarkThemeEnabled(value: Boolean) =
+        prefs.edit().putBoolean(KEY_DARK_THEME, value).apply()
+
     companion object {
         private const val PREFS_NAME = "ezan_vakti_settings"
         private const val KEY_SEHIR_ID = "manual_sehir_id"
@@ -43,5 +50,6 @@ class AppSettings(context: Context) {
         private const val KEY_ILCE_ID = "manual_ilce_id"
         private const val KEY_ILCE_ADI = "manual_ilce_adi"
         private const val KEY_NOTIFICATIONS = "notifications_enabled"
+        private const val KEY_DARK_THEME = "dark_theme_enabled"
     }
 }

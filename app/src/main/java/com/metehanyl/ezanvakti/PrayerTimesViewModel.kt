@@ -1,6 +1,7 @@
 package com.metehanyl.ezanvakti
 
 import android.app.Application
+import android.content.res.Configuration
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.metehanyl.ezanvakti.data.AppSettings
@@ -25,7 +26,8 @@ data class PrayerUiState(
     val isOffline: Boolean = false,
     val errorMessage: String? = null,
     val notificationsEnabled: Boolean = false,
-    val manualLocation: SelectedLocation? = null
+    val manualLocation: SelectedLocation? = null,
+    val darkThemeEnabled: Boolean = false
 )
 
 data class LocationPickerState(
@@ -53,14 +55,23 @@ class PrayerTimesViewModel(application: Application) : AndroidViewModel(applicat
 
     init {
         val cached = repository.getCachedBundle()
+        val systemDarkTheme = (application.resources.configuration.uiMode and
+            Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         _uiState.update {
             it.copy(
                 bundle = cached,
                 isShowingExactToday = cached?.todayOrClosest()?.second ?: true,
                 notificationsEnabled = settings.notificationsEnabled,
-                manualLocation = repository.getManualLocation()
+                manualLocation = repository.getManualLocation(),
+                darkThemeEnabled = settings.isDarkThemeEnabled(systemDarkTheme)
             )
         }
+    }
+
+    fun toggleDarkTheme() {
+        val enabled = !_uiState.value.darkThemeEnabled
+        settings.setDarkThemeEnabled(enabled)
+        _uiState.update { it.copy(darkThemeEnabled = enabled) }
     }
 
     fun refresh() {

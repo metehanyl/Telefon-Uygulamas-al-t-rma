@@ -39,15 +39,16 @@ class MainActivity : ComponentActivity() {
         requestLocationPermissionIfNeeded()
 
         setContent {
-            EzanVaktiTheme {
-                val uiState by viewModel.uiState.collectAsState()
-                val pickerState by viewModel.pickerState.collectAsState()
+            val uiState by viewModel.uiState.collectAsState()
+            val pickerState by viewModel.pickerState.collectAsState()
 
+            EzanVaktiTheme(darkTheme = uiState.darkThemeEnabled) {
                 PrayerTimesScreen(
                     uiState = uiState,
                     onRefresh = { requestLocationPermissionIfNeeded() },
                     onToggleNotifications = { enabled -> onToggleNotifications(enabled) },
-                    onOpenLocationPicker = { viewModel.openLocationPicker() }
+                    onOpenLocationPicker = { viewModel.openLocationPicker() },
+                    onToggleDarkTheme = { viewModel.toggleDarkTheme() }
                 )
 
                 if (pickerState.isOpen) {

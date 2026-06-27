@@ -9,6 +9,7 @@
     <string name="screen_title">Namaz Vakitleri</string>
     <string name="action_refresh">Yenile</string>
     <string name="action_change_location">Konumu değiştir</string>
+    <string name="action_toggle_theme">Koyu/açık temayı değiştir</string>
 
     <string name="offline_banner">Çevrimdışı: son kaydedilen vakitler gösteriliyor</string>
     <string name="stale_banner">Bu vakitler güncel olmayabilir. İnternete bağlanıp yenileyin.</string>
