@@ -87,7 +87,10 @@ class PrayerRepository(private val context: Context) {
 
         if (district == null) {
             val candidatesText = if (ilceCandidates.isEmpty()) "aday yok" else ilceCandidates.joinToString("/")
-            return LocationLookup.Failure("$il ilinde ilçe eşleşmedi, adaylar: $candidatesText")
+            val officialNames = districts.joinToString(", ") { it.name }
+            return LocationLookup.Failure(
+                "${city.name} ilinde ilçe eşleşmedi, adaylar: $candidatesText. Resmi liste: $officialNames"
+            )
         }
 
         return LocationLookup.Success(
