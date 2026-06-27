@@ -95,11 +95,15 @@ class PrayerRepository(private val context: Context) {
                 continue
             }
 
+            // İstanbul gibi büyükşehirlerde Diyanet'in ilçe listesi sadece uzak/banliyö ilçeleri
+            // (Silivri, Şile, Tuzla vb.) ayrı kayıt olarak tutar; Kadıköy, Üsküdar, Beşiktaş gibi
+            // merkez ilçeler ayrı girilmez, bunlar şehrin kendi adıyla aynı olan "merkez" ilçe
+            // kaydı altında toplanır. Aday hiçbir özel ilçeyle eşleşmezse bu merkez kaydına düş.
             val district = candidateKeys.firstNotNullOfOrNull { key ->
                 districts.firstOrNull { trKey(it.name) == key }
             } ?: candidateKeys.firstNotNullOfOrNull { key ->
                 districts.firstOrNull { trKey(it.name).contains(key) || key.contains(trKey(it.name)) }
-            }
+            } ?: districts.firstOrNull { trKey(it.name) == trKey(city.name) }
 
             if (district != null) {
                 return LocationLookup.Success(
