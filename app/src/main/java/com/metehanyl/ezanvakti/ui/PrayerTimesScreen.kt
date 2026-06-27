@@ -74,7 +74,7 @@ import com.metehanyl.ezanvakti.R
 import com.metehanyl.ezanvakti.data.DiyanetApi
 import com.metehanyl.ezanvakti.data.model.ESMA_UL_HUSNA
 import com.metehanyl.ezanvakti.data.model.PrayerBundle
-import com.metehanyl.ezanvakti.ui.theme.CrescentGold
+import com.metehanyl.ezanvakti.ui.theme.Green700
 import com.metehanyl.ezanvakti.ui.theme.LightningYellow
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -99,32 +99,16 @@ fun PrayerTimesScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Box(modifier = Modifier.size(28.dp)) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_mosque),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(28.dp)
-                            )
-                            Icon(
-                                painter = painterResource(R.drawable.ic_crescent),
-                                contentDescription = null,
-                                tint = CrescentGold,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
+                        Icon(
+                            painter = painterResource(R.drawable.ic_crescent_logo),
+                            contentDescription = null,
+                            tint = Green700,
+                            modifier = Modifier.size(22.dp)
+                        )
                         Text(stringResource(R.string.screen_title))
                     }
                 },
                 actions = {
-                    Image(
-                        painter = painterResource(R.drawable.ic_yildirim_logo),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .padding(end = 4.dp)
-                            .size(18.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                    )
                     IconButton(onClick = onToggleDarkTheme) {
                         Icon(
                             if (uiState.darkThemeEnabled) Icons.Default.LightMode else Icons.Default.DarkMode,
@@ -363,15 +347,31 @@ private fun CountdownBox(value: String, label: String) {
 @Composable
 private fun LocationRow(bundle: PrayerBundle?) {
     if (bundle == null) return
-    Text(
-        text = stringResource(R.string.location_label, bundle.sehirAdi, bundle.ilceAdi),
-        style = MaterialTheme.typography.titleMedium
-    )
-    Text(
-        text = stringResource(R.string.last_updated_label, formatTimestamp(bundle.fetchedAtEpochMillis)),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.location_label, bundle.sehirAdi, bundle.ilceAdi),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = stringResource(R.string.last_updated_label, formatTimestamp(bundle.fetchedAtEpochMillis)),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Image(
+            painter = painterResource(R.drawable.ic_yildirim_logo),
+            contentDescription = null,
+            modifier = Modifier
+                .padding(start = 8.dp)
+                .size(20.dp)
+                .clip(RoundedCornerShape(4.dp))
+        )
+    }
 }
 
 @Composable
