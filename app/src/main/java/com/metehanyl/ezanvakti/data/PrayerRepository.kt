@@ -21,8 +21,11 @@ class PrayerRepository(private val context: Context) {
     fun setManualLocation(location: SelectedLocation?) = settings.setManualLocation(location)
 
     suspend fun refresh(): RefreshResult {
-        val location = resolveLocation()
-            ?: return RefreshResult.Failure("Konum belirlenemedi. Konum izni verin ya da şehrinizi manuel seçin.")
+        val location = when (val lookup = resolveLocation()) {
+            is LocationLookup.Success -> lookup.location
+            is LocationLookup.Failure ->
+                return RefreshResult.Failure("Konum belirlenemedi (${lookup.reason}). Konum izni verin ya da şehrinizi manuel seçin.")
+        }
 
         return try {
             val days = DiyanetApi.getPrayerTimes(location.ilceId)
@@ -45,37 +48,60 @@ class PrayerRepository(private val context: Context) {
         }
     }
 
-    private suspend fun resolveLocation(): SelectedLocation? {
-        settings.getManualLocation()?.let { return it }
+    private suspend fun resolveLocation(): LocationLookup {
+        settings.getManualLocation()?.let { return LocationLookup.Success(it) }
 
-        val location = locationProvider.getCurrentLocation() ?: return null
+        if (!locationProvider.hasLocationPermission()) {
+            return LocationLookup.Failure("konum izni verilmedi")
+        }
+        val location = locationProvider.getCurrentLocation()
+            ?: return LocationLookup.Failure("GPS/ağ konumu alınamadı")
+
         val area = reverseGeocode(context, location.latitude, location.longitude)
-        val il = area.il ?: return null
-        return resolveCityAndDistrict(il, area.ilceCandidates)
+        val il = area.il
+            ?: return LocationLookup.Failure("konum coğrafi olarak çözümlenemedi, il bulunamadı")
+
+        return try {
+            resolveCityAndDistrict(il, area.ilceCandidates)
+        } catch (e: Exception) {
+            LocationLookup.Failure("Diyanet şehir/ilçe listesi alınamadı: ${e.message}")
+        }
     }
 
-    private suspend fun resolveCityAndDistrict(il: String, ilceCandidates: List<String>): SelectedLocation? {
+    private suspend fun resolveCityAndDistrict(il: String, ilceCandidates: List<String>): LocationLookup {
         val ilKey = trKey(il)
         val cities = DiyanetApi.getCities()
         val city = cities.firstOrNull { trKey(it.name) == ilKey }
             ?: cities.firstOrNull { trKey(it.name).contains(ilKey) || ilKey.contains(trKey(it.name)) }
-            ?: return null
+            ?: return LocationLookup.Failure("şehir bulunamadı: $il")
 
         val districts = DiyanetApi.getDistricts(city.id)
-        if (districts.isEmpty()) return null
+        if (districts.isEmpty()) return LocationLookup.Failure("${city.name} için ilçe listesi boş döndü")
 
         val candidateKeys = ilceCandidates.map { trKey(it) }.filter { it.isNotBlank() }
         val district = candidateKeys.firstNotNullOfOrNull { key ->
             districts.firstOrNull { trKey(it.name) == key }
         } ?: candidateKeys.firstNotNullOfOrNull { key ->
             districts.firstOrNull { trKey(it.name).contains(key) || key.contains(trKey(it.name)) }
-        } ?: return null
+        }
 
-        return SelectedLocation(
-            sehirId = city.id,
-            sehirAdi = city.name,
-            ilceId = district.id,
-            ilceAdi = district.name
+        if (district == null) {
+            val candidatesText = if (ilceCandidates.isEmpty()) "aday yok" else ilceCandidates.joinToString("/")
+            return LocationLookup.Failure("$il ilinde ilçe eşleşmedi, adaylar: $candidatesText")
+        }
+
+        return LocationLookup.Success(
+            SelectedLocation(
+                sehirId = city.id,
+                sehirAdi = city.name,
+                ilceId = district.id,
+                ilceAdi = district.name
+            )
         )
+    }
+
+    private sealed class LocationLookup {
+        data class Success(val location: SelectedLocation) : LocationLookup()
+        data class Failure(val reason: String) : LocationLookup()
     }
 }
