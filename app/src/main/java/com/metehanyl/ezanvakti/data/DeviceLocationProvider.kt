@@ -33,7 +33,10 @@ class DeviceLocationProvider(private val context: Context) {
         val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
         val cached = bestLastKnownLocation(locationManager)
-        if (cached != null && System.currentTimeMillis() - cached.time < TimeUnit.MINUTES.toMillis(30)) {
+        val cachedIsGoodEnough = cached != null &&
+            System.currentTimeMillis() - cached.time < TimeUnit.MINUTES.toMillis(5) &&
+            cached.accuracy <= 100f
+        if (cachedIsGoodEnough) {
             return cached
         }
 
@@ -75,10 +78,38 @@ class DeviceLocationProvider(private val context: Context) {
             } catch (e: SecurityException) {
                 null
             } ?: continue
-            if (best == null || location.time > best!!.time) {
+            if (isBetterLocation(location, best)) {
                 best = location
             }
         }
         return best
+    }
+
+    /**
+     * Konum doğruluğunu da hesaba katar; sadece en yeni değil, en güvenilir konumu seçer.
+     * Aksi halde GPS'ten gelen daha eski ama çok daha doğru bir konum, hücre/ağ tabanlı
+     * ve kilometrelerce hata payı olabilen daha yeni bir konum tarafından yanlışlıkla geçilebilir.
+     */
+    private fun isBetterLocation(location: Location, current: Location?): Boolean {
+        if (current == null) return true
+
+        val timeDelta = location.time - current.time
+        val isSignificantlyNewer = timeDelta > TimeUnit.MINUTES.toMillis(2)
+        val isSignificantlyOlder = timeDelta < -TimeUnit.MINUTES.toMillis(2)
+        val isNewer = timeDelta > 0
+
+        if (isSignificantlyNewer) return true
+        if (isSignificantlyOlder) return false
+
+        val accuracyDelta = (location.accuracy - current.accuracy)
+        val isLessAccurate = accuracyDelta > 0
+        val isSignificantlyLessAccurate = accuracyDelta > 200f
+        val isFromSameProvider = location.provider == current.provider
+
+        return when {
+            !isLessAccurate -> true
+            isNewer && !isSignificantlyLessAccurate && isFromSameProvider -> true
+            else -> false
+        }
     }
 }

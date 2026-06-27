@@ -23,7 +23,12 @@ private val DarkColors = darkColorScheme(
     background = DarkBackground,
     surface = DarkSurface,
     primaryContainer = DarkPrimaryContainer,
-    onPrimaryContainer = DarkOnPrimaryContainer
+    onPrimaryContainer = DarkOnPrimaryContainer,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkOnSurfaceVariant,
+    outline = DarkOutline,
+    secondaryContainer = DarkSecondaryContainer,
+    onSecondaryContainer = DarkOnSecondaryContainer
 )
 
 private val LightColors = lightColorScheme(
@@ -33,7 +38,12 @@ private val LightColors = lightColorScheme(
     background = LightBackground,
     surface = Color.White,
     primaryContainer = GreenPrimaryContainer,
-    onPrimaryContainer = GreenOnPrimaryContainer
+    onPrimaryContainer = GreenOnPrimaryContainer,
+    surfaceVariant = LightSurfaceVariant,
+    onSurfaceVariant = LightOnSurfaceVariant,
+    outline = LightOutline,
+    secondaryContainer = LightSecondaryContainer,
+    onSecondaryContainer = LightOnSecondaryContainer
 )
 
 private val AppShapes = Shapes(

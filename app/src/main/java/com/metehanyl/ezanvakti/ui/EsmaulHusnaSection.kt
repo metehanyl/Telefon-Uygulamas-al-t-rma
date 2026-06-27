@@ -1,31 +1,51 @@
 package com.metehanyl.ezanvakti.ui
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.metehanyl.ezanvakti.R
 import com.metehanyl.ezanvakti.data.model.EsmaName
+import com.metehanyl.ezanvakti.ui.theme.CrescentGold
 
 @Composable
 fun EsmaulHusnaHeader() {
     Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-        Text(
-            text = stringResource(R.string.esma_section_title),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(
+                painter = painterResource(R.drawable.ic_islamic_star),
+                contentDescription = null,
+                tint = CrescentGold,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = stringResource(R.string.esma_section_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Icon(
+                painter = painterResource(R.drawable.ic_islamic_star),
+                contentDescription = null,
+                tint = CrescentGold,
+                modifier = Modifier.size(18.dp)
+            )
+        }
         Text(
             text = stringResource(R.string.esma_section_subtitle),
             style = MaterialTheme.typography.bodyMedium,

@@ -2,6 +2,7 @@ package com.metehanyl.ezanvakti.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -52,6 +53,7 @@ import com.metehanyl.ezanvakti.R
 import com.metehanyl.ezanvakti.data.DiyanetApi
 import com.metehanyl.ezanvakti.data.model.ESMA_UL_HUSNA
 import com.metehanyl.ezanvakti.data.model.PrayerBundle
+import com.metehanyl.ezanvakti.ui.theme.CrescentGold
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -72,12 +74,20 @@ fun PrayerTimesScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_mosque),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp)
-                        )
+                        Box(modifier = Modifier.size(28.dp)) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_mosque),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Icon(
+                                painter = painterResource(R.drawable.ic_crescent),
+                                contentDescription = null,
+                                tint = CrescentGold,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                         Text(stringResource(R.string.screen_title))
                     }
                 },
@@ -183,12 +193,20 @@ private fun CountdownCard(bundle: PrayerBundle?) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_mosque),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(40.dp)
-            )
+            Box(modifier = Modifier.size(40.dp)) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_mosque),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(40.dp)
+                )
+                Icon(
+                    painter = painterResource(R.drawable.ic_crescent),
+                    contentDescription = null,
+                    tint = CrescentGold,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
             Text(
                 text = stringResource(R.string.countdown_label, nextName),
                 style = MaterialTheme.typography.titleMedium,
