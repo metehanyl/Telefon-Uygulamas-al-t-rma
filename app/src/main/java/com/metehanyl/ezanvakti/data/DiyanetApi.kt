@@ -9,6 +9,7 @@ import org.json.JSONArray
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 
 /**
  * Diyanet İşleri Başkanlığı'nın namazvakitleri.diyanet.gov.tr verisini ayna olarak sunan
@@ -18,6 +19,9 @@ object DiyanetApi {
 
     private const val BASE_URL = "https://ezanvakti.emushaf.net"
     private const val TURKEY_COUNTRY_ID = "2"
+
+    /** Kullanıcıya şeffaf şekilde gösterilecek veri kaynağı adresi. */
+    const val DATA_SOURCE_HOST = "ezanvakti.emushaf.net"
 
     suspend fun getCities(): List<CityOption> = withContext(Dispatchers.IO) {
         val json = httpGet("$BASE_URL/sehirler/$TURKEY_COUNTRY_ID")
@@ -31,7 +35,7 @@ object DiyanetApi {
     }
 
     suspend fun getDistricts(cityId: String): List<DistrictOption> = withContext(Dispatchers.IO) {
-        val json = httpGet("$BASE_URL/ilceler/$cityId")
+        val json = httpGet("$BASE_URL/ilceler/${encodePathSegment(cityId)}")
         val array = JSONArray(json)
         buildList {
             for (i in 0 until array.length()) {
@@ -42,7 +46,7 @@ object DiyanetApi {
     }
 
     suspend fun getPrayerTimes(districtId: String): List<PrayerDay> = withContext(Dispatchers.IO) {
-        val json = httpGet("$BASE_URL/vakitler/$districtId")
+        val json = httpGet("$BASE_URL/vakitler/${encodePathSegment(districtId)}")
         val array = JSONArray(json)
         buildList {
             for (i in 0 until array.length()) {
@@ -62,11 +66,20 @@ object DiyanetApi {
         }
     }
 
+    /** URL path parçalarına enjekte edilebilecek karakterleri temizler (savunma amaçlı). */
+    private fun encodePathSegment(segment: String): String =
+        URLEncoder.encode(segment, "UTF-8")
+
     private fun httpGet(urlString: String): String {
+        require(urlString.startsWith("https://")) { "Sadece HTTPS istekleri desteklenir: $urlString" }
+
         val connection = URL(urlString).openConnection() as HttpURLConnection
         connection.requestMethod = "GET"
         connection.connectTimeout = 10_000
         connection.readTimeout = 10_000
+        // Sunucu yönlendirme yaparsa (örn. http'ye düşürme), kendimiz takip etmiyoruz;
+        // güvenilmeyen bir hedefe sessizce yönlenmeyi engeller.
+        connection.instanceFollowRedirects = false
         connection.setRequestProperty("Accept", "application/json")
         try {
             val code = connection.responseCode

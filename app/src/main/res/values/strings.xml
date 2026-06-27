@@ -30,4 +30,9 @@
     <string name="last_updated_label">Son güncelleme: %1$s</string>
     <string name="empty_state_label">Vakitleri görmek için konum izni verin ya da şehrinizi seçin.</string>
     <string name="grant_permission_label">Konum izni ver</string>
+
+    <string name="countdown_label">%1$s vaktine kalan süre</string>
+    <string name="data_source_label">Vakitler %1$s adresinden (Diyanet ayna servisi) HTTPS ile şifreli olarak çekilir.</string>
+    <string name="esma_section_title">Esmâ-ül Hüsnâ</string>
+    <string name="esma_section_subtitle">Allah\'ın 99 güzel ismi ve kısa anlamları</string>
 </resources>
