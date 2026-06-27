@@ -51,10 +51,10 @@ class PrayerRepository(private val context: Context) {
         val location = locationProvider.getCurrentLocation() ?: return null
         val area = reverseGeocode(context, location.latitude, location.longitude)
         val il = area.il ?: return null
-        return resolveCityAndDistrict(il, area.ilce)
+        return resolveCityAndDistrict(il, area.ilceCandidates)
     }
 
-    private suspend fun resolveCityAndDistrict(il: String, ilce: String?): SelectedLocation? {
+    private suspend fun resolveCityAndDistrict(il: String, ilceCandidates: List<String>): SelectedLocation? {
         val ilKey = trKey(il)
         val cities = DiyanetApi.getCities()
         val city = cities.firstOrNull { trKey(it.name) == ilKey }
@@ -63,10 +63,12 @@ class PrayerRepository(private val context: Context) {
 
         val districts = DiyanetApi.getDistricts(city.id)
         if (districts.isEmpty()) return null
-        val ilceKey = ilce?.let { trKey(it) }
-        val district = ilceKey?.let { key ->
+
+        val candidateKeys = ilceCandidates.map { trKey(it) }.filter { it.isNotBlank() }
+        val district = candidateKeys.firstNotNullOfOrNull { key ->
             districts.firstOrNull { trKey(it.name) == key }
-                ?: districts.firstOrNull { trKey(it.name).contains(key) || key.contains(trKey(it.name)) }
+        } ?: candidateKeys.firstNotNullOfOrNull { key ->
+            districts.firstOrNull { trKey(it.name).contains(key) || key.contains(trKey(it.name)) }
         } ?: return null
 
         return SelectedLocation(

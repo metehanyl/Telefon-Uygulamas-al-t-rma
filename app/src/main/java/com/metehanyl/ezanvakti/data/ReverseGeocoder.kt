@@ -10,18 +10,22 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
 
-data class GeoArea(val il: String?, val ilce: String?)
+data class GeoArea(val il: String?, val ilceCandidates: List<String>)
 
 /**
- * Enlem/boylamı il ve ilçe adına çevirir. Önce cihazın sistem Geocoder'ı denenir; bu servis
- * Google Play Services olmayan ya da geocoding arka ucu çalışmayan cihazlarda sessizce boş
- * sonuç döndürebildiğinden, başarısız olursa ağ üzerinden OpenStreetMap Nominatim ile yedek
- * çözümleme yapılır. İkisi de başarısız olursa null döner; kullanıcı konumu manuel seçebilir.
+ * Enlem/boylamı il ve olası ilçe adı adaylarına çevirir. Cihazın sistem Geocoder'ı ve ağ üzerinden
+ * OpenStreetMap Nominatim her zaman birlikte çalıştırılıp adayları birleştirilir; çünkü geocoder'lar
+ * "ilçe" kavramını farklı alanlarda (bazen mahalle, bazen belde adıyla) tutarsız şekilde döndürebilir.
+ * Birden fazla aday toplamak, tek bir alanın yanlış/eksik olması durumunda doğru ilçeyi bulma şansını
+ * artırır. İl bilgisi hiçbir kaynaktan gelmezse null döner; kullanıcı konumu manuel seçebilir.
  */
 suspend fun reverseGeocode(context: Context, latitude: Double, longitude: Double): GeoArea =
     withContext(Dispatchers.IO) {
         val deviceResult = deviceGeocode(context, latitude, longitude)
-        if (deviceResult?.il != null) deviceResult else networkGeocode(latitude, longitude)
+        val networkResult = networkGeocode(latitude, longitude)
+        val il = deviceResult?.il ?: networkResult.il
+        val candidates = (deviceResult?.ilceCandidates ?: emptyList()) + networkResult.ilceCandidates
+        GeoArea(il = il, ilceCandidates = candidates.distinct())
     }
 
 private fun deviceGeocode(context: Context, latitude: Double, longitude: Double): GeoArea? =
@@ -33,7 +37,14 @@ private fun deviceGeocode(context: Context, latitude: Double, longitude: Double)
             val results = geocoder.getFromLocation(latitude, longitude, 1)
             val address = results?.firstOrNull()
             if (address == null) null
-            else GeoArea(il = address.adminArea, ilce = address.subAdminArea ?: address.locality)
+            else GeoArea(
+                il = address.adminArea,
+                ilceCandidates = listOfNotNull(
+                    address.subAdminArea,
+                    address.locality,
+                    address.subLocality
+                ).filter { it.isNotBlank() }
+            )
         }
     } catch (e: Exception) {
         null
@@ -57,20 +68,23 @@ private fun networkGeocode(latitude: Double, longitude: Double): GeoArea =
             if (code !in 200..299) throw IOException("HTTP $code: $url")
             val body = connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
             val address = JSONObject(body).optJSONObject("address")
-            if (address == null) GeoArea(null, null)
+            if (address == null) GeoArea(null, emptyList())
             else GeoArea(
                 il = address.optString("state").ifBlank { null },
-                // Türkiye'de ilçe seviyesi OSM'de genelde city_district/district olarak etiketlenir;
-                // town/suburb/county daha çok mahalle ya da farklı ülke şemalarına ait, son çare olarak kullanılır.
-                ilce = address.optString("city_district").ifBlank { null }
-                    ?: address.optString("district").ifBlank { null }
-                    ?: address.optString("county").ifBlank { null }
-                    ?: address.optString("town").ifBlank { null }
-                    ?: address.optString("suburb").ifBlank { null }
+                // Türkiye'de ilçe bilgisi OSM'de tutarsız alanlarda gelebildiğinden, tek bir alan
+                // seçmek yerine olası tüm adaylar toplanır; eşleştirme aşamasında hepsi denenir.
+                ilceCandidates = listOfNotNull(
+                    address.optString("city_district").ifBlank { null },
+                    address.optString("district").ifBlank { null },
+                    address.optString("county").ifBlank { null },
+                    address.optString("town").ifBlank { null },
+                    address.optString("suburb").ifBlank { null },
+                    address.optString("neighbourhood").ifBlank { null }
+                )
             )
         } finally {
             connection.disconnect()
         }
     } catch (e: Exception) {
-        GeoArea(null, null)
+        GeoArea(null, emptyList())
     }
