@@ -43,6 +43,11 @@
             </intent-filter>
         </receiver>
 
+        <provider
+            android:name=".data.PrayerProvider"
+            android:authorities="com.metehanyl.ezanvakti.provider"
+            android:exported="true" />
+
     </application>
 
 </manifest>

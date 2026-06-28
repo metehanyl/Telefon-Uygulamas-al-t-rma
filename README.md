@@ -20,6 +20,12 @@ Android uygulaması.
   gömülmemiştir). Bildirimler `AlarmManager` ile tam zamanlı olarak
   planlanır ve telefon yeniden başlatıldığında otomatik olarak yeniden
   kurulur.
+- Diğer uygulamaların (örn. Çalar Saat) o günün İmsak vaktini okuyabilmesi
+  için salt-okunur bir `ContentProvider` sağlar
+  (`content://com.metehanyl.ezanvakti.provider/imsak`). Bu sadece cihazda
+  zaten önbelleğe alınmış vakti döner; veri çekmez, bu yüzden okuyan
+  uygulamadan önce bu uygulamanın en az bir kez açılıp vakitlerin
+  güncellenmiş olması gerekir.
 
 ## Projeyi açma ve APK oluşturma
 
