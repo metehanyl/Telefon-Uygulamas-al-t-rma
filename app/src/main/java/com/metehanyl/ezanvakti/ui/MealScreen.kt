@@ -76,7 +76,6 @@ data class SurahMeta(
 
 data class QuranVerse(
     val numberInSurah: Int,
-    val arabic: String,
     val turkish: String
 )
 
@@ -213,13 +212,12 @@ fun surahAudioUrl(number: Int): String =
     "https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/$number.mp3"
 
 /**
- * alQuran.cloud API'sinden Arapça metin + Mehmet Okuyan mealini getirir.
- * Editions: quran-uthmani (Arapça) + tr.okuyan (Okuyan meali)
+ * alQuran.cloud API'sinden Mehmet Okuyan Türkçe mealini getirir.
+ * Edition: tr.okuyan — yalnızca Türkçe meal, yanıt boyutunu küçültür.
  */
 private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahContent =
     withContext(Dispatchers.IO) {
-        val apiUrl =
-            "https://api.alquran.cloud/v1/surah/$number/editions/quran-uthmani,tr.okuyan"
+        val apiUrl = "https://api.alquran.cloud/v1/surah/$number/tr.okuyan"
         val conn = (URL(apiUrl).openConnection() as HttpURLConnection).also {
             it.connectTimeout = 12_000
             it.readTimeout = 20_000
@@ -231,15 +229,14 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
         }
         val json = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8))
             .use { it.readText() }
-        val data = JSONObject(json).getJSONArray("data")
-        val arabicAyahs = data.getJSONObject(0).getJSONArray("ayahs")
-        val turkishAyahs = data.getJSONObject(1).getJSONArray("ayahs")
+        val data = JSONObject(json).getJSONObject("data")
+        val ayahs = data.getJSONArray("ayahs")
 
-        val verses = (0 until arabicAyahs.length()).map { i ->
+        val verses = (0 until ayahs.length()).map { i ->
+            val ayah = ayahs.getJSONObject(i)
             QuranVerse(
-                numberInSurah = arabicAyahs.getJSONObject(i).getInt("numberInSurah"),
-                arabic = arabicAyahs.getJSONObject(i).getString("text"),
-                turkish = turkishAyahs.getJSONObject(i).getString("text")
+                numberInSurah = ayah.getInt("numberInSurah"),
+                turkish = ayah.getString("text")
             )
         }
         SurahContent(meta, verses)
@@ -516,8 +513,12 @@ private fun SurahContentView(surahNumber: Int, content: SurahContent) {
         }
 
         // Ayetler
-        items(content.verses, key = { "${surahNumber}_${it.numberInSurah}" }) { verse ->
-            VerseCard(verse)
+        items(
+            content.verses,
+            key = { "${surahNumber}_${it.numberInSurah}" },
+            contentType = { "verse" }
+        ) { verse ->
+            VerseRow(verse)
         }
 
         item { Spacer(Modifier.height(8.dp)) }
@@ -546,62 +547,46 @@ private fun BismillahCard() {
     }
 }
 
+/**
+ * Hafif ayet satırı — Card/gölge/kırpma yok, RTL Arapça metni yok.
+ * Sadece ayet numarası rozeti + Mehmet Okuyan Türkçe meali gösterilir.
+ */
 @Composable
-private fun VerseCard(verse: QuranVerse) {
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+private fun VerseRow(verse: QuranVerse) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.Top
     ) {
-        Column(
+        // Numara rozeti
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .size(26.dp)
+                .background(Green700.copy(alpha = 0.12f), CircleShape),
+            contentAlignment = Alignment.Center
         ) {
-            // Ayet numarası + Arapça metin
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                // Numara rozeti
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .background(Green700.copy(alpha = 0.15f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = verse.numberInSurah.toString(),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Green700
-                    )
-                }
-                // Arapça ayet metni
-                Text(
-                    text = verse.arabic,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        textDirection = TextDirection.Rtl,
-                        textAlign = TextAlign.End,
-                        fontSize = 18.sp,
-                        lineHeight = 32.sp
-                    )
-                )
-            }
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-            // Türkçe meal (Mehmet Okuyan)
             Text(
-                text = verse.turkish,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 22.sp
+                text = verse.numberInSurah.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = Green700
             )
         }
+        // Türkçe meal (Mehmet Okuyan)
+        Text(
+            text = verse.turkish,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            lineHeight = 22.sp
+        )
     }
+    HorizontalDivider(
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+        modifier = Modifier.padding(horizontal = 12.dp)
+    )
 }
 
 // ─── Composable: Sesli okuma oynatıcısı ─────────────────────────────────────
