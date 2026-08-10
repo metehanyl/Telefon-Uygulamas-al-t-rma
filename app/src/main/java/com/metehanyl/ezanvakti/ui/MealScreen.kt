@@ -217,43 +217,56 @@ private fun stripHtml(text: String): String =
 
 /**
  * Mehmet Okuyan meal kimliği önbelleği.
- * qurancdn API'deki çeviri ID'si uygulama ömrü boyunca tek kez çözümlenir.
+ * quran.com API v4'teki çeviri ID'si uygulama ömrü boyunca tek kez çözümlenir.
+ * Dinamik keşif başarısız olursa bilinen sabit ID kullanılır.
  */
 private object OkuyanIdCache {
     @Volatile var id: Int? = null
+    const val FALLBACK_ID = 112  // quran.com'da Mehmet Okuyan meali için bilinen ID
 }
 
 /**
- * qurancdn (quran.com altyapısı) Türkçe çeviri listesinden
+ * quran.com API v4'ten Türkçe çeviri listesini çekerek
  * Mehmet Okuyan'a ait çeviri ID'sini bulur ve önbelleğe alır.
+ * Keşif başarısız olursa FALLBACK_ID kullanılır.
  */
 private suspend fun resolveOkuyanId(): Int =
     withContext(Dispatchers.IO) {
         OkuyanIdCache.id?.let { return@withContext it }
-        val url = "https://api.qurancdn.com/api/qdc/resources/translations?language=tr"
-        val conn = (URL(url).openConnection() as HttpURLConnection).also {
-            it.connectTimeout = 10_000
-            it.readTimeout = 15_000
-        }
-        if (conn.responseCode != HttpURLConnection.HTTP_OK) throw Exception("HTTP ${conn.responseCode}")
-        val json = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8)).use { it.readText() }
-        val arr = JSONObject(json).getJSONArray("translations")
-        var found = -1
-        for (i in 0 until arr.length()) {
-            val t = arr.getJSONObject(i)
-            val combined = t.optString("name", "") + "|" + t.optString("author_name", "")
-            if (combined.contains("Okuyan", ignoreCase = true)) {
-                found = t.getInt("id")
-                break
+        try {
+            val url = "https://api.quran.com/api/v4/resources/translations?language=tr"
+            val conn = (URL(url).openConnection() as HttpURLConnection).also {
+                it.connectTimeout = 10_000
+                it.readTimeout = 15_000
+                it.setRequestProperty("Accept", "application/json")
             }
+            if (conn.responseCode != HttpURLConnection.HTTP_OK) {
+                OkuyanIdCache.id = OkuyanIdCache.FALLBACK_ID
+                return@withContext OkuyanIdCache.FALLBACK_ID
+            }
+            val json = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8)).use { it.readText() }
+            val arr = JSONObject(json).getJSONArray("translations")
+            var found = -1
+            for (i in 0 until arr.length()) {
+                val t = arr.getJSONObject(i)
+                val combined = t.optString("name", "") + "|" + t.optString("author_name", "")
+                if (combined.contains("Okuyan", ignoreCase = true)) {
+                    found = t.getInt("id")
+                    break
+                }
+            }
+            val resolvedId = if (found == -1) OkuyanIdCache.FALLBACK_ID else found
+            OkuyanIdCache.id = resolvedId
+            resolvedId
+        } catch (_: Exception) {
+            // SSL hatası veya ağ sorunu → bilinen sabit ID ile devam et
+            OkuyanIdCache.id = OkuyanIdCache.FALLBACK_ID
+            OkuyanIdCache.FALLBACK_ID
         }
-        if (found == -1) throw Exception("Mehmet Okuyan meali API'de bulunamadı")
-        OkuyanIdCache.id = found
-        found
     }
 
 /**
- * qurancdn API'sinden Mehmet Okuyan Türkçe mealini sayfalı olarak getirir.
+ * quran.com API v4'ten Mehmet Okuyan Türkçe mealini sayfalı olarak getirir.
  * Büyük sureler (Bakara 286 ayet vb.) için sayfalama otomatik yapılır.
  */
 private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahContent =
@@ -262,11 +275,12 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
         val allVerses = mutableListOf<QuranVerse>()
         var page = 1
         do {
-            val apiUrl = "https://api.qurancdn.com/api/qdc/verses/by_chapter/$number" +
+            val apiUrl = "https://api.quran.com/api/v4/verses/by_chapter/$number" +
                 "?translations=$translationId&per_page=50&page=$page&fields=verse_number"
             val conn = (URL(apiUrl).openConnection() as HttpURLConnection).also {
                 it.connectTimeout = 12_000
                 it.readTimeout = 20_000
+                it.setRequestProperty("Accept", "application/json")
             }
             if (conn.responseCode != HttpURLConnection.HTTP_OK) throw Exception("HTTP ${conn.responseCode}")
             val json = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8)).use { it.readText() }
