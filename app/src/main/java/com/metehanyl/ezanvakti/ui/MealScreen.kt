@@ -1,7 +1,6 @@
 package com.metehanyl.ezanvakti.ui
 
-import android.media.AudioAttributes
-import android.media.MediaPlayer
+import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,16 +17,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -38,7 +37,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -49,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -84,7 +83,8 @@ data class SurahContent(
     val verses: List<QuranVerse>
 )
 
-enum class AudioPlayerState { IDLE, LOADING, PLAYING, PAUSED, ERROR }
+/** Okuma işareti: yalnızca bir tane olabilir, yeni işaret eskiyi siler. */
+data class MealBookmark(val surahNumber: Int, val verseNumber: Int)
 
 // ─── 114 Sure meta verisi ────────────────────────────────────────────────────
 
@@ -205,13 +205,33 @@ val ALL_SURAHS: List<SurahMeta> = listOf(
     SurahMeta(114, "Nâs",          "الناس",      6,    "Mekkî")
 )
 
+// ─── Okuma işareti (SharedPreferences) ───────────────────────────────────────
+
+private const val PREFS_NAME = "meal_prefs"
+private const val KEY_BM_SURAH = "bookmark_surah"
+private const val KEY_BM_VERSE = "bookmark_verse"
+
+private fun loadBookmark(context: Context): MealBookmark? {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    val surah = prefs.getInt(KEY_BM_SURAH, -1)
+    val verse = prefs.getInt(KEY_BM_VERSE, -1)
+    return if (surah != -1 && verse != -1) MealBookmark(surah, verse) else null
+}
+
+private fun saveBookmark(context: Context, bookmark: MealBookmark?) {
+    val editor = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+    if (bookmark == null) {
+        editor.remove(KEY_BM_SURAH).remove(KEY_BM_VERSE)
+    } else {
+        editor.putInt(KEY_BM_SURAH, bookmark.surahNumber)
+              .putInt(KEY_BM_VERSE, bookmark.verseNumber)
+    }
+    editor.apply()
+}
+
 // ─── Yardımcı fonksiyonlar ───────────────────────────────────────────────────
 
-/** Mishary Alafasy kıraat ses dosyası (Islamic Network CDN) */
-fun surahAudioUrl(number: Int): String =
-    "https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/$number.mp3"
-
-/** qurancdn API'nin döndürdüğü <sup>…</sup> dipnot etiketlerini temizler */
+/** quran.com API'nin döndürdüğü <sup>…</sup> dipnot etiketlerini temizler */
 private fun stripHtml(text: String): String =
     text.replace(Regex("<[^>]+>"), "").trim()
 
@@ -259,7 +279,6 @@ private suspend fun resolveOkuyanId(): Int =
             OkuyanIdCache.id = resolvedId
             resolvedId
         } catch (_: Exception) {
-            // SSL hatası veya ağ sorunu → bilinen sabit ID ile devam et
             OkuyanIdCache.id = OkuyanIdCache.FALLBACK_ID
             OkuyanIdCache.FALLBACK_ID
         }
@@ -305,15 +324,28 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
 
 @Composable
 fun MealTabContent() {
+    val context = LocalContext.current
     var selectedSurah by rememberSaveable { mutableStateOf<Int?>(null) }
+    // Bookmark: uygulama başlangıcında SharedPreferences'tan yüklenir
+    var bookmark by remember { mutableStateOf(loadBookmark(context)) }
+
+    val onBookmark: (MealBookmark?) -> Unit = { newBookmark ->
+        bookmark = newBookmark
+        saveBookmark(context, newBookmark)
+    }
 
     if (selectedSurah == null) {
-        SurahListView(onSelect = { selectedSurah = it })
+        SurahListView(
+            bookmark = bookmark,
+            onSelect = { selectedSurah = it }
+        )
     } else {
         val meta = ALL_SURAHS[selectedSurah!! - 1]
         SurahDetailView(
             surahNumber = selectedSurah!!,
             meta = meta,
+            bookmark = bookmark,
+            onBookmark = onBookmark,
             onBack = { selectedSurah = null }
         )
     }
@@ -322,7 +354,7 @@ fun MealTabContent() {
 // ─── Composable: Sure listesi ─────────────────────────────────────────────────
 
 @Composable
-private fun SurahListView(onSelect: (Int) -> Unit) {
+private fun SurahListView(bookmark: MealBookmark?, onSelect: (Int) -> Unit) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -330,17 +362,22 @@ private fun SurahListView(onSelect: (Int) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         item { Spacer(Modifier.height(8.dp)) }
-        item { MealHeader() }
+        item { MealHeader(bookmark = bookmark) }
 
         items(ALL_SURAHS, key = { it.number }) { meta ->
-            SurahListItem(meta = meta, onClick = { onSelect(meta.number) })
+            SurahListItem(
+                meta = meta,
+                isBookmarked = bookmark?.surahNumber == meta.number,
+                bookmarkedVerse = if (bookmark?.surahNumber == meta.number) bookmark?.verseNumber else null,
+                onClick = { onSelect(meta.number) }
+            )
         }
         item { Spacer(Modifier.height(8.dp)) }
     }
 }
 
 @Composable
-private fun MealHeader() {
+private fun MealHeader(bookmark: MealBookmark?) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
@@ -366,10 +403,16 @@ private fun MealHeader() {
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
-                    text = "Prof. Dr. Mehmet Okuyan · 114 sure",
+                    text = if (bookmark != null) {
+                        val sureName = ALL_SURAHS.getOrNull(bookmark.surahNumber - 1)?.nameTr ?: ""
+                        "📖 ${sureName} · ${bookmark.verseNumber}. ayet"
+                    } else {
+                        "Prof. Dr. Mehmet Okuyan · 114 sure"
+                    },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontStyle = FontStyle.Italic
+                    color = if (bookmark != null) Green700
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontStyle = if (bookmark != null) FontStyle.Normal else FontStyle.Italic
                 )
             }
             Text(
@@ -383,13 +426,23 @@ private fun MealHeader() {
 }
 
 @Composable
-private fun SurahListItem(meta: SurahMeta, onClick: () -> Unit) {
+private fun SurahListItem(
+    meta: SurahMeta,
+    isBookmarked: Boolean,
+    bookmarkedVerse: Int?,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(
+            containerColor = if (isBookmarked)
+                MaterialTheme.colorScheme.secondaryContainer
+            else
+                MaterialTheme.colorScheme.surface
+        )
     ) {
         Row(
             modifier = Modifier
@@ -402,7 +455,10 @@ private fun SurahListItem(meta: SurahMeta, onClick: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(38.dp)
-                    .background(Green700, CircleShape),
+                    .background(
+                        if (isBookmarked) Green700 else Green700,
+                        CircleShape
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -417,21 +473,38 @@ private fun SurahListItem(meta: SurahMeta, onClick: () -> Unit) {
                 Text(
                     text = meta.nameTr,
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isBookmarked)
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    else
+                        MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "${meta.verseCount} ayet · ${meta.revelation}",
+                    text = if (isBookmarked && bookmarkedVerse != null)
+                        "${meta.verseCount} ayet · ${meta.revelation}  ·  📖 ${bookmarkedVerse}. ayetten devam"
+                    else
+                        "${meta.verseCount} ayet · ${meta.revelation}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isBookmarked) Green700
+                            else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            // Arapça ad
-            Text(
-                text = meta.nameAr,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Green700
-            )
+            // İşaret ikonu veya Arapça ad
+            if (isBookmarked) {
+                Icon(
+                    Icons.Default.Bookmark,
+                    contentDescription = "İşaretlendi",
+                    tint = Green700,
+                    modifier = Modifier.size(22.dp)
+                )
+            } else {
+                Text(
+                    text = meta.nameAr,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Green700
+                )
+            }
         }
     }
 }
@@ -439,7 +512,13 @@ private fun SurahListItem(meta: SurahMeta, onClick: () -> Unit) {
 // ─── Composable: Sure detayı ─────────────────────────────────────────────────
 
 @Composable
-private fun SurahDetailView(surahNumber: Int, meta: SurahMeta, onBack: () -> Unit) {
+private fun SurahDetailView(
+    surahNumber: Int,
+    meta: SurahMeta,
+    bookmark: MealBookmark?,
+    onBookmark: (MealBookmark?) -> Unit,
+    onBack: () -> Unit
+) {
     BackHandler { onBack() }
 
     var content by remember { mutableStateOf<SurahContent?>(null) }
@@ -461,14 +540,18 @@ private fun SurahDetailView(surahNumber: Int, meta: SurahMeta, onBack: () -> Uni
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Geri butonu + Sure başlığı
         SurahDetailHeader(meta = meta, onBack = onBack)
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
         when {
             isLoading -> DetailLoadingState()
             errorMsg != null -> DetailErrorState(errorMsg!!) { retryKey++ }
-            content != null -> SurahContentView(surahNumber = surahNumber, content = content!!)
+            content != null -> SurahContentView(
+                surahNumber = surahNumber,
+                content = content!!,
+                bookmark = bookmark,
+                onBookmark = onBookmark
+            )
         }
     }
 }
@@ -554,17 +637,38 @@ private fun DetailErrorState(message: String, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun SurahContentView(surahNumber: Int, content: SurahContent) {
+private fun SurahContentView(
+    surahNumber: Int,
+    content: SurahContent,
+    bookmark: MealBookmark?,
+    onBookmark: (MealBookmark?) -> Unit
+) {
+    // İşaretli ayet varsa o ayetin index'ine kaydır
+    val bookmarkedIndex = if (bookmark?.surahNumber == surahNumber) {
+        // Besmele (+1 offset) ve başlık item'larını say
+        val besmeleOffset = if (surahNumber != 9) 1 else 0  // besmele item
+        val headerOffset = 1  // spacer item
+        val verseIndex = content.verses.indexOfFirst { it.numberInSurah == bookmark.verseNumber }
+        if (verseIndex >= 0) headerOffset + besmeleOffset + verseIndex else -1
+    } else -1
+
+    val listState = rememberLazyListState()
+
+    // Sayfa açılınca işaretli ayete scroll
+    LaunchedEffect(bookmarkedIndex) {
+        if (bookmarkedIndex > 0) {
+            listState.scrollToItem(bookmarkedIndex)
+        }
+    }
+
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item { Spacer(Modifier.height(4.dp)) }
-
-        // Sesli okuma oynatıcısı
-        item { QuranAudioPlayer(surahNumber) }
 
         // Besmele (Tevbe suresi hariç tüm sureler için)
         if (surahNumber != 9) {
@@ -577,7 +681,21 @@ private fun SurahContentView(surahNumber: Int, content: SurahContent) {
             key = { "${surahNumber}_${it.numberInSurah}" },
             contentType = { "verse" }
         ) { verse ->
-            VerseRow(verse)
+            val isThisBookmarked = bookmark?.surahNumber == surahNumber &&
+                                   bookmark.verseNumber == verse.numberInSurah
+            VerseRow(
+                verse = verse,
+                isBookmarked = isThisBookmarked,
+                onToggleBookmark = {
+                    if (isThisBookmarked) {
+                        // Aynı ayete tekrar basınca işareti kaldır
+                        onBookmark(null)
+                    } else {
+                        // Yeni işaret: eskisi otomatik kalkar
+                        onBookmark(MealBookmark(surahNumber, verse.numberInSurah))
+                    }
+                }
+            )
         }
 
         item { Spacer(Modifier.height(8.dp)) }
@@ -607,15 +725,27 @@ private fun BismillahCard() {
 }
 
 /**
- * Hafif ayet satırı — Card/gölge/kırpma yok, RTL Arapça metni yok.
- * Sadece ayet numarası rozeti + Mehmet Okuyan Türkçe meali gösterilir.
+ * Ayet satırı — ayet numarası rozeti + Türkçe meal + işaret butonu.
+ * İşaretli ayet yeşil arka planla vurgulanır.
+ * İşaret butonuna basınca: işaretli değilse işaret koy, işaretliyse kaldır.
+ * Yeni işaret konunca önceki işaret otomatik kalkar (üst bileşen yönetir).
  */
 @Composable
-private fun VerseRow(verse: QuranVerse) {
+private fun VerseRow(
+    verse: QuranVerse,
+    isBookmarked: Boolean,
+    onToggleBookmark: () -> Unit
+) {
+    val bgColor = if (isBookmarked)
+        Green700.copy(alpha = 0.08f)
+    else
+        Color.Transparent
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .background(bgColor, RoundedCornerShape(10.dp))
+            .padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.Top
     ) {
@@ -623,14 +753,17 @@ private fun VerseRow(verse: QuranVerse) {
         Box(
             modifier = Modifier
                 .size(26.dp)
-                .background(Green700.copy(alpha = 0.12f), CircleShape),
+                .background(
+                    if (isBookmarked) Green700 else Green700.copy(alpha = 0.12f),
+                    CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = verse.numberInSurah.toString(),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = Green700
+                color = if (isBookmarked) Color.White else Green700
             )
         }
         // Türkçe meal (Mehmet Okuyan)
@@ -641,140 +774,23 @@ private fun VerseRow(verse: QuranVerse) {
             color = MaterialTheme.colorScheme.onSurface,
             lineHeight = 22.sp
         )
-    }
-    HorizontalDivider(
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-        modifier = Modifier.padding(horizontal = 12.dp)
-    )
-}
-
-// ─── Composable: Sesli okuma oynatıcısı ─────────────────────────────────────
-
-@Composable
-private fun QuranAudioPlayer(surahNumber: Int) {
-    var playerState by remember { mutableStateOf(AudioPlayerState.IDLE) }
-    val player = remember { MediaPlayer() }
-
-    // Sure değiştiğinde veya composable kaldırıldığında oynatıcıyı serbest bırak
-    DisposableEffect(Unit) {
-        onDispose {
-            try {
-                if (player.isPlaying) player.stop()
-            } catch (_: Exception) { }
-            player.release()
-        }
-    }
-
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        // İşaret butonu
+        IconButton(
+            onClick = onToggleBookmark,
+            modifier = Modifier.size(32.dp)
         ) {
-            // Oynat / Duraklat / Yükleniyor butonu
-            when (playerState) {
-                AudioPlayerState.LOADING -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .padding(4.dp),
-                        strokeWidth = 3.dp,
-                        color = Green700
-                    )
-                }
-                else -> {
-                    IconButton(
-                        onClick = {
-                            when (playerState) {
-                                AudioPlayerState.PLAYING -> {
-                                    try { player.pause() } catch (_: Exception) { }
-                                    playerState = AudioPlayerState.PAUSED
-                                }
-                                AudioPlayerState.PAUSED -> {
-                                    try {
-                                        player.start()
-                                        playerState = AudioPlayerState.PLAYING
-                                    } catch (_: Exception) {
-                                        playerState = AudioPlayerState.ERROR
-                                    }
-                                }
-                                else -> {
-                                    // IDLE veya ERROR → yeniden başlat
-                                    playerState = AudioPlayerState.LOADING
-                                    try {
-                                        player.reset()
-                                        player.setAudioAttributes(
-                                            AudioAttributes.Builder()
-                                                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                                                .setUsage(AudioAttributes.USAGE_MEDIA)
-                                                .build()
-                                        )
-                                        player.setDataSource(surahAudioUrl(surahNumber))
-                                        player.setOnPreparedListener { mp ->
-                                            mp.start()
-                                            playerState = AudioPlayerState.PLAYING
-                                        }
-                                        player.setOnErrorListener { _, _, _ ->
-                                            playerState = AudioPlayerState.ERROR
-                                            true
-                                        }
-                                        player.setOnCompletionListener {
-                                            playerState = AudioPlayerState.IDLE
-                                        }
-                                        player.prepareAsync()
-                                    } catch (_: Exception) {
-                                        playerState = AudioPlayerState.ERROR
-                                    }
-                                }
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = if (playerState == AudioPlayerState.PLAYING)
-                                Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (playerState == AudioPlayerState.PLAYING)
-                                "Duraklat" else "Dinle",
-                            tint = Green700,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
-                }
-            }
-
-            // Durum metni
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = when (playerState) {
-                        AudioPlayerState.IDLE    -> "Sesli Kıraat Dinle"
-                        AudioPlayerState.LOADING -> "Yükleniyor…"
-                        AudioPlayerState.PLAYING -> "Çalıyor…"
-                        AudioPlayerState.PAUSED  -> "Duraklatıldı"
-                        AudioPlayerState.ERROR   -> "Ses yüklenemedi"
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-                Text(
-                    text = "Kıraat: Mishary Alafasy",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontStyle = FontStyle.Italic
-                )
-            }
-
             Icon(
-                Icons.Default.VolumeUp,
-                contentDescription = null,
-                tint = if (playerState == AudioPlayerState.PLAYING) Green700
-                       else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp)
+                imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                contentDescription = if (isBookmarked) "İşareti kaldır" else "Buraya işaret koy",
+                tint = if (isBookmarked) Green700 else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(18.dp)
             )
         }
+    }
+    if (!isBookmarked) {
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
     }
 }
