@@ -43,9 +43,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -131,7 +131,7 @@ fun PrayerTimesScreen(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            TabRow(selectedTabIndex = selectedTab) {
+            ScrollableTabRow(selectedTabIndex = selectedTab) {
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
@@ -147,12 +147,18 @@ fun PrayerTimesScreen(
                     onClick = { selectedTab = 2 },
                     text = { Text(stringResource(R.string.tab_esma)) }
                 )
+                Tab(
+                    selected = selectedTab == 3,
+                    onClick = { selectedTab = 3 },
+                    text = { Text(stringResource(R.string.tab_sureler)) }
+                )
             }
 
             when (selectedTab) {
                 0 -> VakitlerTabContent(uiState, onRefresh, onToggleNotifications)
                 1 -> QiblaScreen(onRequestLocationPermission = onRequestLocationPermission)
-                else -> EsmaTabContent()
+                2 -> EsmaTabContent()
+                else -> SurelerTabContent()
             }
         }
     }

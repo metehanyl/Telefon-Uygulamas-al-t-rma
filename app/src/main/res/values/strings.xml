@@ -54,6 +54,7 @@
     <string name="tab_vakitler">Vakitler</string>
     <string name="tab_kible">Kıble</string>
     <string name="tab_esma">Esmâ-ül Hüsnâ</string>
+    <string name="tab_sureler">Sureler</string>
 
     <string name="qibla_title">Kıble Pusulası</string>
     <string name="qibla_subtitle">Telefonu düz tutun, ok Kâbe\'yi gösterir</string>
