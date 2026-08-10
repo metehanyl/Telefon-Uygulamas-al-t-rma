@@ -152,13 +152,19 @@ fun PrayerTimesScreen(
                     onClick = { selectedTab = 3 },
                     text = { Text(stringResource(R.string.tab_sureler)) }
                 )
+                Tab(
+                    selected = selectedTab == 4,
+                    onClick = { selectedTab = 4 },
+                    text = { Text(stringResource(R.string.tab_meal)) }
+                )
             }
 
             when (selectedTab) {
                 0 -> VakitlerTabContent(uiState, onRefresh, onToggleNotifications)
                 1 -> QiblaScreen(onRequestLocationPermission = onRequestLocationPermission)
                 2 -> EsmaTabContent()
-                else -> SurelerTabContent()
+                3 -> SurelerTabContent()
+                else -> MealTabContent()
             }
         }
     }
