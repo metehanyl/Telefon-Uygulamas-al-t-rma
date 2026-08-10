@@ -211,35 +211,80 @@ val ALL_SURAHS: List<SurahMeta> = listOf(
 fun surahAudioUrl(number: Int): String =
     "https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/$number.mp3"
 
+/** qurancdn API'nin döndürdüğü <sup>…</sup> dipnot etiketlerini temizler */
+private fun stripHtml(text: String): String =
+    text.replace(Regex("<[^>]+>"), "").trim()
+
 /**
- * alQuran.cloud API'sinden Mehmet Okuyan Türkçe mealini getirir.
- * Edition: tr.okuyan — yalnızca Türkçe meal, yanıt boyutunu küçültür.
+ * Mehmet Okuyan meal kimliği önbelleği.
+ * qurancdn API'deki çeviri ID'si uygulama ömrü boyunca tek kez çözümlenir.
+ */
+private object OkuyanIdCache {
+    @Volatile var id: Int? = null
+}
+
+/**
+ * qurancdn (quran.com altyapısı) Türkçe çeviri listesinden
+ * Mehmet Okuyan'a ait çeviri ID'sini bulur ve önbelleğe alır.
+ */
+private suspend fun resolveOkuyanId(): Int =
+    withContext(Dispatchers.IO) {
+        OkuyanIdCache.id?.let { return@withContext it }
+        val url = "https://api.qurancdn.com/api/qdc/resources/translations?language=tr"
+        val conn = (URL(url).openConnection() as HttpURLConnection).also {
+            it.connectTimeout = 10_000
+            it.readTimeout = 15_000
+        }
+        if (conn.responseCode != HttpURLConnection.HTTP_OK) throw Exception("HTTP ${conn.responseCode}")
+        val json = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8)).use { it.readText() }
+        val arr = JSONObject(json).getJSONArray("translations")
+        var found = -1
+        for (i in 0 until arr.length()) {
+            val t = arr.getJSONObject(i)
+            val combined = t.optString("name", "") + "|" + t.optString("author_name", "")
+            if (combined.contains("Okuyan", ignoreCase = true)) {
+                found = t.getInt("id")
+                break
+            }
+        }
+        if (found == -1) throw Exception("Mehmet Okuyan meali API'de bulunamadı")
+        OkuyanIdCache.id = found
+        found
+    }
+
+/**
+ * qurancdn API'sinden Mehmet Okuyan Türkçe mealini sayfalı olarak getirir.
+ * Büyük sureler (Bakara 286 ayet vb.) için sayfalama otomatik yapılır.
  */
 private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahContent =
     withContext(Dispatchers.IO) {
-        val apiUrl = "https://api.alquran.cloud/v1/surah/$number/tr.okuyan"
-        val conn = (URL(apiUrl).openConnection() as HttpURLConnection).also {
-            it.connectTimeout = 12_000
-            it.readTimeout = 20_000
-            it.requestMethod = "GET"
-        }
-        val responseCode = conn.responseCode
-        if (responseCode != HttpURLConnection.HTTP_OK) {
-            throw Exception("HTTP $responseCode")
-        }
-        val json = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8))
-            .use { it.readText() }
-        val data = JSONObject(json).getJSONObject("data")
-        val ayahs = data.getJSONArray("ayahs")
-
-        val verses = (0 until ayahs.length()).map { i ->
-            val ayah = ayahs.getJSONObject(i)
-            QuranVerse(
-                numberInSurah = ayah.getInt("numberInSurah"),
-                turkish = ayah.getString("text")
-            )
-        }
-        SurahContent(meta, verses)
+        val translationId = resolveOkuyanId()
+        val allVerses = mutableListOf<QuranVerse>()
+        var page = 1
+        do {
+            val apiUrl = "https://api.qurancdn.com/api/qdc/verses/by_chapter/$number" +
+                "?translations=$translationId&per_page=50&page=$page&fields=verse_number"
+            val conn = (URL(apiUrl).openConnection() as HttpURLConnection).also {
+                it.connectTimeout = 12_000
+                it.readTimeout = 20_000
+            }
+            if (conn.responseCode != HttpURLConnection.HTTP_OK) throw Exception("HTTP ${conn.responseCode}")
+            val json = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8)).use { it.readText() }
+            val root = JSONObject(json)
+            val verses = root.getJSONArray("verses")
+            for (i in 0 until verses.length()) {
+                val v = verses.getJSONObject(i)
+                val tArr = v.getJSONArray("translations")
+                val text = if (tArr.length() > 0) stripHtml(tArr.getJSONObject(0).getString("text")) else ""
+                allVerses.add(QuranVerse(
+                    numberInSurah = v.getInt("verse_number"),
+                    turkish = text
+                ))
+            }
+            val totalPages = root.optJSONObject("pagination")?.optInt("total_pages", 1) ?: 1
+            page++
+        } while (page <= totalPages)
+        SurahContent(meta, allVerses)
     }
 
 // ─── Composable: Ana sekme ───────────────────────────────────────────────────
