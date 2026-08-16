@@ -8,6 +8,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,22 +26,29 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.metehanyl.ezanvakti.ui.theme.Green700
@@ -293,6 +302,20 @@ private fun SurelerHeader() {
 @Composable
 private fun SurahCard(surah: Surah) {
     var expanded by rememberSaveable(surah.number) { mutableStateOf(false) }
+    var viewMode by rememberSaveable(surah.number) { mutableStateOf(MealViewMode.MEAL) }
+    // null = henüz yüklenmedi, emptyMap = yükleme başarısız/boş, dolu map = hazır
+    var wordData by remember { mutableStateOf<Map<Int, List<QuranWord>>?>(null) }
+
+    // Kart açıldığında kelime verisini arka planda getir (bir kez)
+    LaunchedEffect(expanded) {
+        if (expanded && wordData == null) {
+            wordData = try {
+                fetchWordData(surah.number)
+            } catch (_: Exception) {
+                emptyMap()
+            }
+        }
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -366,32 +389,132 @@ private fun SurahCard(surah: Surah) {
                         .padding(bottom = 16.dp)
                 ) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                    // Arapça metin (sağdan sola)
-                    Text(
-                        text = surah.arabicText,
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            textDirection = TextDirection.Rtl,
-                            textAlign = TextAlign.End,
-                            lineHeight = 34.sp,
-                            fontSize = 18.sp
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    // Mod seçici
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = viewMode == MealViewMode.MEAL,
+                            onClick = { viewMode = MealViewMode.MEAL },
+                            label = { Text("Meâl", style = MaterialTheme.typography.labelMedium) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Green700,
+                                selectedLabelColor = Color.White
+                            )
+                        )
+                        FilterChip(
+                            selected = viewMode == MealViewMode.KELIME_KELIME,
+                            onClick = { viewMode = MealViewMode.KELIME_KELIME },
+                            label = { Text("Kelime Kelime", style = MaterialTheme.typography.labelMedium) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Green700,
+                                selectedLabelColor = Color.White
+                            )
+                        )
+                    }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                    // Türkçe anlam
-                    Text(
-                        text = surah.turkishMeaning,
-                        style = MaterialTheme.typography.bodyMedium,
-                        lineHeight = 22.sp
-                    )
+                    when (viewMode) {
+                        MealViewMode.MEAL -> SurahMealContent(surah, wordData)
+                        MealViewMode.KELIME_KELIME -> SurahKelimeKelimeContent(surah, wordData)
+                    }
                 }
             }
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Meâl modu: Arapça metin → okunuş → Türkçe anlam
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun SurahMealContent(surah: Surah, wordData: Map<Int, List<QuranWord>>?) {
+    // Arapça metin (sağdan sola)
+    Text(
+        text = surah.arabicText,
+        style = MaterialTheme.typography.bodyLarge.copy(
+            textDirection = TextDirection.Rtl,
+            textAlign = TextAlign.End,
+            lineHeight = 34.sp,
+            fontSize = 18.sp
+        ),
+        modifier = Modifier.fillMaxWidth()
+    )
+
+    // Transliterasyon — tüm ayetlerin kelimelerini birleştir
+    if (!wordData.isNullOrEmpty()) {
+        val translit = wordData.entries
+            .sortedBy { it.key }
+            .flatMap { it.value }
+            .joinToString(" ") { it.transliteration }
+            .trim()
+        if (translit.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = translit,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodySmall.copy(
+                    textAlign = TextAlign.End,
+                    lineHeight = 18.sp
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontStyle = FontStyle.Italic
+            )
+        }
+    }
+
+    Spacer(modifier = Modifier.height(14.dp))
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    Spacer(modifier = Modifier.height(12.dp))
+
+    // Türkçe anlam
+    Text(
+        text = surah.turkishMeaning,
+        style = MaterialTheme.typography.bodyMedium,
+        lineHeight = 22.sp
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Kelime Kelime modu: her kelimenin altında okunuş ve Türkçe anlam
+// ---------------------------------------------------------------------------
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SurahKelimeKelimeContent(surah: Surah, wordData: Map<Int, List<QuranWord>>?) {
+    if (wordData.isNullOrEmpty()) {
+        // Veri henüz yüklenmedi veya boş — normal içeriği göster
+        SurahMealContent(surah, wordData)
+        return
+    }
+
+    // Tüm ayetlerin kelimeleri, ayet sırasına göre
+    val allWords = wordData.entries.sortedBy { it.key }.flatMap { it.value }
+
+    // RTL düzende kelime sütunları
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            allWords.forEach { word -> WordColumn(word) }
+        }
+    }
+
+    Spacer(Modifier.height(6.dp))
+    HorizontalDivider(
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+        modifier = Modifier.padding(vertical = 4.dp)
+    )
+
+    // Referans için Türkçe meal
+    Text(
+        text = surah.turkishMeaning,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        lineHeight = 18.sp
+    )
 }

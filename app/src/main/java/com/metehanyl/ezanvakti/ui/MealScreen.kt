@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,12 +33,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -48,10 +53,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.metehanyl.ezanvakti.ui.theme.Green700
@@ -70,12 +77,22 @@ data class SurahMeta(
     val nameTr: String,
     val nameAr: String,
     val verseCount: Int,
-    val revelation: String   // Mekkî / Medenî
+    val revelation: String
+)
+
+/** Tek bir Arapça kelime: metin, Latin okunuş ve Türkçe anlam */
+data class QuranWord(
+    val position: Int,
+    val arabic: String,          // Arapça kelime
+    val transliteration: String, // Latin harfli okunuş (bis'mi, allāhi…)
+    val turkish: String          // Kelime düzeyinde Türkçe anlam
 )
 
 data class QuranVerse(
     val numberInSurah: Int,
-    val turkish: String
+    val arabic: String,          // text_uthmani — tam Arapça ayet metni
+    val turkish: String,         // Mehmet Okuyan meali (ayet düzeyinde)
+    val words: List<QuranWord>   // Kelime kelime veri
 )
 
 data class SurahContent(
@@ -83,8 +100,65 @@ data class SurahContent(
     val verses: List<QuranVerse>
 )
 
+/** Görünüm modu */
+enum class MealViewMode { MEAL, KELIME_KELIME }
+
 /** Okuma işareti: yalnızca bir tane olabilir, yeni işaret eskiyi siler. */
 data class MealBookmark(val surahNumber: Int, val verseNumber: Int)
+
+// ─── Kelime verisi önbelleği (Sureler sekmesiyle paylaşılır) ──────────────────
+
+internal object WordDataCache {
+    val cache = mutableMapOf<Int, Map<Int, List<QuranWord>>>()
+}
+
+/**
+ * quran.com API v4'ten belirtilen sure için kelime düzeyinde
+ * transliterasyon ve Türkçe anlam verisini getirir.
+ * Sonuç WordDataCache'e kaydedilir; aynı sure tekrar istenmez.
+ */
+suspend fun fetchWordData(surahNumber: Int): Map<Int, List<QuranWord>> =
+    withContext(Dispatchers.IO) {
+        WordDataCache.cache[surahNumber]?.let { return@withContext it }
+        val result = mutableMapOf<Int, MutableList<QuranWord>>()
+        var page = 1
+        var totalPages = 1
+        do {
+            val url = "https://api.quran.com/api/v4/verses/by_chapter/$surahNumber" +
+                "?word_fields=transliteration,translation" +
+                "&language=tr" +
+                "&per_page=50&page=$page" +
+                "&fields=verse_number"
+            val conn = (URL(url).openConnection() as HttpURLConnection).also {
+                it.connectTimeout = 12_000
+                it.readTimeout = 20_000
+                it.setRequestProperty("Accept", "application/json")
+            }
+            if (conn.responseCode != HttpURLConnection.HTTP_OK) throw Exception("HTTP ${conn.responseCode}")
+            val json = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8)).use { it.readText() }
+            val root = JSONObject(json)
+            val verses = root.getJSONArray("verses")
+            for (i in 0 until verses.length()) {
+                val v = verses.getJSONObject(i)
+                val verseNum = v.getInt("verse_number")
+                val wordsArr = v.optJSONArray("words") ?: continue
+                val list = result.getOrPut(verseNum) { mutableListOf() }
+                for (j in 0 until wordsArr.length()) {
+                    val w = wordsArr.getJSONObject(j)
+                    if (w.optString("char_type_name") == "end") continue
+                    val wordAr = w.optString("text_uthmani", w.optString("text", ""))
+                    val translit = w.optJSONObject("transliteration")?.optString("text", "") ?: ""
+                    val wordTr = w.optJSONObject("translation")?.optString("text", "") ?: ""
+                    if (wordAr.isNotBlank()) list.add(QuranWord(w.optInt("position", j + 1), wordAr, translit, wordTr))
+                }
+            }
+            totalPages = root.optJSONObject("pagination")?.optInt("total_pages", 1) ?: 1
+            page++
+        } while (page <= totalPages)
+        val immutable: Map<Int, List<QuranWord>> = result
+        WordDataCache.cache[surahNumber] = immutable
+        immutable
+    }
 
 // ─── 114 Sure meta verisi ────────────────────────────────────────────────────
 
@@ -152,7 +226,7 @@ val ALL_SURAHS: List<SurahMeta> = listOf(
     SurahMeta(61,  "Saf",          "الصف",       14,   "Medenî"),
     SurahMeta(62,  "Cum'a",        "الجمعة",     11,   "Medenî"),
     SurahMeta(63,  "Münâfikûn",    "المنافقون",  11,   "Medenî"),
-    SurahMeta(64,  "Teğâbün",      "التغابن",    18,   "Medenî"),
+    SurahMeta(64,  "Teğâbün",      "التغabün",   18,   "Medenî"),
     SurahMeta(65,  "Talâk",        "الطلاق",     12,   "Medenî"),
     SurahMeta(66,  "Tahrîm",       "التحريم",    12,   "Medenî"),
     SurahMeta(67,  "Mülk",         "الملك",      30,   "Mekkî"),
@@ -214,7 +288,7 @@ private const val KEY_BM_VERSE = "bookmark_verse"
 private fun loadBookmark(context: Context): MealBookmark? {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     val surah = prefs.getInt(KEY_BM_SURAH, -1)
-    val verse = prefs.getInt(KEY_BM_VERSE, -1)
+    val verse  = prefs.getInt(KEY_BM_VERSE,  -1)
     return if (surah != -1 && verse != -1) MealBookmark(surah, verse) else null
 }
 
@@ -231,25 +305,14 @@ private fun saveBookmark(context: Context, bookmark: MealBookmark?) {
 
 // ─── Yardımcı fonksiyonlar ───────────────────────────────────────────────────
 
-/** quran.com API'nin döndürdüğü <sup>…</sup> dipnot etiketlerini temizler */
 private fun stripHtml(text: String): String =
     text.replace(Regex("<[^>]+>"), "").trim()
 
-/**
- * Mehmet Okuyan meal kimliği önbelleği.
- * quran.com API v4'teki çeviri ID'si uygulama ömrü boyunca tek kez çözümlenir.
- * Dinamik keşif başarısız olursa bilinen sabit ID kullanılır.
- */
 private object OkuyanIdCache {
     @Volatile var id: Int? = null
-    const val FALLBACK_ID = 112  // quran.com'da Mehmet Okuyan meali için bilinen ID
+    const val FALLBACK_ID = 112
 }
 
-/**
- * quran.com API v4'ten Türkçe çeviri listesini çekerek
- * Mehmet Okuyan'a ait çeviri ID'sini bulur ve önbelleğe alır.
- * Keşif başarısız olursa FALLBACK_ID kullanılır.
- */
 private suspend fun resolveOkuyanId(): Int =
     withContext(Dispatchers.IO) {
         OkuyanIdCache.id?.let { return@withContext it }
@@ -270,24 +333,15 @@ private suspend fun resolveOkuyanId(): Int =
             for (i in 0 until arr.length()) {
                 val t = arr.getJSONObject(i)
                 val combined = t.optString("name", "") + "|" + t.optString("author_name", "")
-                if (combined.contains("Okuyan", ignoreCase = true)) {
-                    found = t.getInt("id")
-                    break
-                }
+                if (combined.contains("Okuyan", ignoreCase = true)) { found = t.getInt("id"); break }
             }
-            val resolvedId = if (found == -1) OkuyanIdCache.FALLBACK_ID else found
-            OkuyanIdCache.id = resolvedId
-            resolvedId
+            val resolved = if (found == -1) OkuyanIdCache.FALLBACK_ID else found
+            OkuyanIdCache.id = resolved; resolved
         } catch (_: Exception) {
-            OkuyanIdCache.id = OkuyanIdCache.FALLBACK_ID
-            OkuyanIdCache.FALLBACK_ID
+            OkuyanIdCache.id = OkuyanIdCache.FALLBACK_ID; OkuyanIdCache.FALLBACK_ID
         }
     }
 
-/**
- * quran.com API v4'ten Mehmet Okuyan Türkçe mealini sayfalı olarak getirir.
- * Büyük sureler (Bakara 286 ayet vb.) için sayfalama otomatik yapılır.
- */
 private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahContent =
     withContext(Dispatchers.IO) {
         val translationId = resolveOkuyanId()
@@ -295,7 +349,11 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
         var page = 1
         do {
             val apiUrl = "https://api.quran.com/api/v4/verses/by_chapter/$number" +
-                "?translations=$translationId&per_page=50&page=$page&fields=verse_number"
+                "?translations=$translationId" +
+                "&word_fields=transliteration,translation" +
+                "&language=tr" +
+                "&per_page=50&page=$page" +
+                "&fields=text_uthmani,verse_number"
             val conn = (URL(apiUrl).openConnection() as HttpURLConnection).also {
                 it.connectTimeout = 12_000
                 it.readTimeout = 20_000
@@ -307,11 +365,34 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
             val verses = root.getJSONArray("verses")
             for (i in 0 until verses.length()) {
                 val v = verses.getJSONObject(i)
+                val arabicText = v.optString("text_uthmani", "")
                 val tArr = v.getJSONArray("translations")
-                val text = if (tArr.length() > 0) stripHtml(tArr.getJSONObject(0).getString("text")) else ""
+                val turkishText = if (tArr.length() > 0) stripHtml(tArr.getJSONObject(0).getString("text")) else ""
+                // Kelime verisi
+                val wordsArr = v.optJSONArray("words")
+                val words = mutableListOf<QuranWord>()
+                if (wordsArr != null) {
+                    for (j in 0 until wordsArr.length()) {
+                        val w = wordsArr.getJSONObject(j)
+                        if (w.optString("char_type_name") == "end") continue
+                        val wAr     = w.optString("text_uthmani", w.optString("text", ""))
+                        val translit = w.optJSONObject("transliteration")?.optString("text", "") ?: ""
+                        val wTr     = w.optJSONObject("translation")?.optString("text", "") ?: ""
+                        if (wAr.isNotBlank()) words.add(QuranWord(w.optInt("position", j + 1), wAr, translit, wTr))
+                    }
+                }
+                // Kelime önbelleğini de güncelle (Sureler sekmesiyle paylaşım)
+                if (words.isNotEmpty()) {
+                    val verseNum = v.getInt("verse_number")
+                    val cached = WordDataCache.cache.getOrPut(number) { mutableMapOf() }.toMutableMap()
+                    cached[verseNum] = words
+                    WordDataCache.cache[number] = cached
+                }
                 allVerses.add(QuranVerse(
                     numberInSurah = v.getInt("verse_number"),
-                    turkish = text
+                    arabic = arabicText,
+                    turkish = turkishText,
+                    words = words
                 ))
             }
             val totalPages = root.optJSONObject("pagination")?.optInt("total_pages", 1) ?: 1
@@ -326,19 +407,12 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
 fun MealTabContent() {
     val context = LocalContext.current
     var selectedSurah by rememberSaveable { mutableStateOf<Int?>(null) }
-    // Bookmark: uygulama başlangıcında SharedPreferences'tan yüklenir
     var bookmark by remember { mutableStateOf(loadBookmark(context)) }
 
-    val onBookmark: (MealBookmark?) -> Unit = { newBookmark ->
-        bookmark = newBookmark
-        saveBookmark(context, newBookmark)
-    }
+    val onBookmark: (MealBookmark?) -> Unit = { nb -> bookmark = nb; saveBookmark(context, nb) }
 
     if (selectedSurah == null) {
-        SurahListView(
-            bookmark = bookmark,
-            onSelect = { selectedSurah = it }
-        )
+        SurahListView(bookmark = bookmark, onSelect = { selectedSurah = it })
     } else {
         val meta = ALL_SURAHS[selectedSurah!! - 1]
         SurahDetailView(
@@ -356,14 +430,11 @@ fun MealTabContent() {
 @Composable
 private fun SurahListView(bookmark: MealBookmark?, onSelect: (Int) -> Unit) {
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 12.dp),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         item { Spacer(Modifier.height(8.dp)) }
         item { MealHeader(bookmark = bookmark) }
-
         items(ALL_SURAHS, key = { it.number }) { meta ->
             SurahListItem(
                 meta = meta,
@@ -383,127 +454,66 @@ private fun MealHeader(bookmark: MealBookmark?) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(
-                Icons.Default.MenuBook,
-                contentDescription = null,
-                tint = Green700,
-                modifier = Modifier.size(28.dp)
-            )
+            Icon(Icons.Default.MenuBook, null, tint = Green700, modifier = Modifier.size(28.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Kur'an-ı Kerîm Meâli",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                Text("Kur'an-ı Kerîm Meâli", style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Text(
                     text = if (bookmark != null) {
-                        val sureName = ALL_SURAHS.getOrNull(bookmark.surahNumber - 1)?.nameTr ?: ""
-                        "📖 ${sureName} · ${bookmark.verseNumber}. ayet"
-                    } else {
-                        "Prof. Dr. Mehmet Okuyan · 114 sure"
-                    },
+                        "📖 ${ALL_SURAHS.getOrNull(bookmark.surahNumber - 1)?.nameTr ?: ""} · ${bookmark.verseNumber}. ayet"
+                    } else "Prof. Dr. Mehmet Okuyan · 114 sure",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (bookmark != null) Green700
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (bookmark != null) Green700 else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontStyle = if (bookmark != null) FontStyle.Normal else FontStyle.Italic
                 )
             }
-            Text(
-                text = "القرآن الكريم",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Green700
-            )
+            Text("القرآن الكريم", style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold, color = Green700)
         }
     }
 }
 
 @Composable
-private fun SurahListItem(
-    meta: SurahMeta,
-    isBookmarked: Boolean,
-    bookmarkedVerse: Int?,
-    onClick: () -> Unit
-) {
+private fun SurahListItem(meta: SurahMeta, isBookmarked: Boolean, bookmarkedVerse: Int?, onClick: () -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isBookmarked)
-                MaterialTheme.colorScheme.secondaryContainer
-            else
-                MaterialTheme.colorScheme.surface
+            containerColor = if (isBookmarked) MaterialTheme.colorScheme.secondaryContainer
+                             else MaterialTheme.colorScheme.surface
         )
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Sure numarası
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .background(
-                        if (isBookmarked) Green700 else Green700,
-                        CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = meta.number.toString(),
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold
-                )
+            Box(modifier = Modifier.size(38.dp).background(Green700, CircleShape), contentAlignment = Alignment.Center) {
+                Text(meta.number.toString(), color = Color.White,
+                    style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
             }
-            // Türkçe ad + meta
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = meta.nameTr,
-                    style = MaterialTheme.typography.bodyLarge,
+                Text(meta.nameTr, style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (isBookmarked)
-                        MaterialTheme.colorScheme.onSecondaryContainer
-                    else
-                        MaterialTheme.colorScheme.onSurface
-                )
+                    color = if (isBookmarked) MaterialTheme.colorScheme.onSecondaryContainer
+                            else MaterialTheme.colorScheme.onSurface)
                 Text(
                     text = if (isBookmarked && bookmarkedVerse != null)
                         "${meta.verseCount} ayet · ${meta.revelation}  ·  📖 ${bookmarkedVerse}. ayetten devam"
-                    else
-                        "${meta.verseCount} ayet · ${meta.revelation}",
+                    else "${meta.verseCount} ayet · ${meta.revelation}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isBookmarked) Green700
-                            else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isBookmarked) Green700 else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            // İşaret ikonu veya Arapça ad
             if (isBookmarked) {
-                Icon(
-                    Icons.Default.Bookmark,
-                    contentDescription = "İşaretlendi",
-                    tint = Green700,
-                    modifier = Modifier.size(22.dp)
-                )
+                Icon(Icons.Default.Bookmark, "İşaretlendi", tint = Green700, modifier = Modifier.size(22.dp))
             } else {
-                Text(
-                    text = meta.nameAr,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Green700
-                )
+                Text(meta.nameAr, style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold, color = Green700)
             }
         }
     }
@@ -521,34 +531,29 @@ private fun SurahDetailView(
 ) {
     BackHandler { onBack() }
 
-    var content by remember { mutableStateOf<SurahContent?>(null) }
+    var content   by remember { mutableStateOf<SurahContent?>(null) }
     var isLoading by remember { mutableStateOf(true) }
-    var errorMsg by remember { mutableStateOf<String?>(null) }
-    var retryKey by remember { mutableIntStateOf(0) }
+    var errorMsg  by remember { mutableStateOf<String?>(null) }
+    var retryKey  by remember { mutableIntStateOf(0) }
+    var viewMode  by rememberSaveable { mutableStateOf(MealViewMode.MEAL) }
 
     LaunchedEffect(surahNumber, retryKey) {
-        isLoading = true
-        errorMsg = null
-        content = null
-        try {
-            content = fetchSurahContent(surahNumber, meta)
-        } catch (e: Exception) {
-            errorMsg = "İçerik yüklenemedi. İnternet bağlantınızı kontrol edin."
-        } finally {
-            isLoading = false
-        }
+        isLoading = true; errorMsg = null; content = null
+        try { content = fetchSurahContent(surahNumber, meta) }
+        catch (e: Exception) { errorMsg = "İçerik yüklenemedi. İnternet bağlantınızı kontrol edin." }
+        finally { isLoading = false }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        SurahDetailHeader(meta = meta, onBack = onBack)
+        SurahDetailHeader(meta = meta, viewMode = viewMode, onViewModeChange = { viewMode = it }, onBack = onBack)
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
         when {
-            isLoading -> DetailLoadingState()
+            isLoading  -> DetailLoadingState()
             errorMsg != null -> DetailErrorState(errorMsg!!) { retryKey++ }
-            content != null -> SurahContentView(
+            content != null  -> SurahContentView(
                 surahNumber = surahNumber,
                 content = content!!,
+                viewMode = viewMode,
                 bookmark = bookmark,
                 onBookmark = onBookmark
             )
@@ -557,52 +562,60 @@ private fun SurahDetailView(
 }
 
 @Composable
-private fun SurahDetailHeader(meta: SurahMeta, onBack: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 4.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(onClick = onBack) {
-            Icon(Icons.Default.ArrowBack, contentDescription = "Geri")
+private fun SurahDetailHeader(
+    meta: SurahMeta,
+    viewMode: MealViewMode,
+    onViewModeChange: (MealViewMode) -> Unit,
+    onBack: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Geri") }
+            Column(modifier = Modifier.weight(1f)) {
+                Text("${meta.number}. ${meta.nameTr}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("${meta.verseCount} ayet · ${meta.revelation}", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(meta.nameAr, style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold, color = Green700, modifier = Modifier.padding(end = 12.dp))
         }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "${meta.number}. ${meta.nameTr}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+        // Mod seçici
+        Row(
+            modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = viewMode == MealViewMode.MEAL,
+                onClick = { onViewModeChange(MealViewMode.MEAL) },
+                label = { Text("Meâl", style = MaterialTheme.typography.labelMedium) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Green700,
+                    selectedLabelColor = Color.White
+                )
             )
-            Text(
-                text = "${meta.verseCount} ayet · ${meta.revelation}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            FilterChip(
+                selected = viewMode == MealViewMode.KELIME_KELIME,
+                onClick = { onViewModeChange(MealViewMode.KELIME_KELIME) },
+                label = { Text("Kelime Kelime", style = MaterialTheme.typography.labelMedium) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Green700,
+                    selectedLabelColor = Color.White
+                )
             )
         }
-        Text(
-            text = meta.nameAr,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = Green700,
-            modifier = Modifier.padding(end = 12.dp)
-        )
     }
 }
 
 @Composable
 private fun DetailLoadingState() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
             CircularProgressIndicator(color = Green700)
-            Text(
-                text = "Sure yükleniyor…",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text("Sure yükleniyor…", style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -610,26 +623,13 @@ private fun DetailLoadingState() {
 @Composable
 private fun DetailErrorState(message: String, onRetry: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Icon(
-                Icons.Default.ErrorOutline,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(48.dp)
-            )
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+        Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Icon(Icons.Default.ErrorOutline, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
+            Text(message, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
             Button(onClick = onRetry) {
-                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
+                Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
                 Text("Tekrar dene")
             }
         }
@@ -640,64 +640,38 @@ private fun DetailErrorState(message: String, onRetry: () -> Unit) {
 private fun SurahContentView(
     surahNumber: Int,
     content: SurahContent,
+    viewMode: MealViewMode,
     bookmark: MealBookmark?,
     onBookmark: (MealBookmark?) -> Unit
 ) {
-    // İşaretli ayet varsa o ayetin index'ine kaydır
     val bookmarkedIndex = if (bookmark?.surahNumber == surahNumber) {
-        // Besmele (+1 offset) ve başlık item'larını say
-        val besmeleOffset = if (surahNumber != 9) 1 else 0  // besmele item
-        val headerOffset = 1  // spacer item
+        val besmeleOffset = if (surahNumber != 9) 1 else 0
         val verseIndex = content.verses.indexOfFirst { it.numberInSurah == bookmark.verseNumber }
-        if (verseIndex >= 0) headerOffset + besmeleOffset + verseIndex else -1
+        if (verseIndex >= 0) 1 + besmeleOffset + verseIndex else -1
     } else -1
 
     val listState = rememberLazyListState()
-
-    // Sayfa açılınca işaretli ayete scroll
-    LaunchedEffect(bookmarkedIndex) {
-        if (bookmarkedIndex > 0) {
-            listState.scrollToItem(bookmarkedIndex)
-        }
-    }
+    LaunchedEffect(bookmarkedIndex) { if (bookmarkedIndex > 0) listState.scrollToItem(bookmarkedIndex) }
 
     LazyColumn(
         state = listState,
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 12.dp),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item { Spacer(Modifier.height(4.dp)) }
+        if (surahNumber != 9) { item { BismillahCard() } }
 
-        // Besmele (Tevbe suresi hariç tüm sureler için)
-        if (surahNumber != 9) {
-            item { BismillahCard() }
-        }
-
-        // Ayetler
-        items(
-            content.verses,
-            key = { "${surahNumber}_${it.numberInSurah}" },
-            contentType = { "verse" }
-        ) { verse ->
-            val isThisBookmarked = bookmark?.surahNumber == surahNumber &&
-                                   bookmark.verseNumber == verse.numberInSurah
+        items(content.verses, key = { "${surahNumber}_${it.numberInSurah}" }, contentType = { "verse" }) { verse ->
+            val isBookmarked = bookmark?.surahNumber == surahNumber && bookmark.verseNumber == verse.numberInSurah
             VerseRow(
                 verse = verse,
-                isBookmarked = isThisBookmarked,
+                viewMode = viewMode,
+                isBookmarked = isBookmarked,
                 onToggleBookmark = {
-                    if (isThisBookmarked) {
-                        // Aynı ayete tekrar basınca işareti kaldır
-                        onBookmark(null)
-                    } else {
-                        // Yeni işaret: eskisi otomatik kalkar
-                        onBookmark(MealBookmark(surahNumber, verse.numberInSurah))
-                    }
+                    onBookmark(if (isBookmarked) null else MealBookmark(surahNumber, verse.numberInSurah))
                 }
             )
         }
-
         item { Spacer(Modifier.height(8.dp)) }
     }
 }
@@ -710,9 +684,7 @@ private fun BismillahCard() {
     ) {
         Text(
             text = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 14.dp, horizontal = 16.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp, horizontal = 16.dp),
             style = MaterialTheme.typography.titleLarge.copy(
                 textDirection = TextDirection.Rtl,
                 textAlign = TextAlign.Center,
@@ -724,73 +696,171 @@ private fun BismillahCard() {
     }
 }
 
-/**
- * Ayet satırı — ayet numarası rozeti + Türkçe meal + işaret butonu.
- * İşaretli ayet yeşil arka planla vurgulanır.
- * İşaret butonuna basınca: işaretli değilse işaret koy, işaretliyse kaldır.
- * Yeni işaret konunca önceki işaret otomatik kalkar (üst bileşen yönetir).
- */
+// ─── Ayet satırı (her iki mod) ────────────────────────────────────────────────
+
 @Composable
 private fun VerseRow(
     verse: QuranVerse,
+    viewMode: MealViewMode,
     isBookmarked: Boolean,
     onToggleBookmark: () -> Unit
 ) {
-    val bgColor = if (isBookmarked)
-        Green700.copy(alpha = 0.08f)
-    else
-        Color.Transparent
+    val bgColor = if (isBookmarked) Green700.copy(alpha = 0.08f) else Color.Transparent
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(bgColor, RoundedCornerShape(10.dp))
-            .padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.Top
+            .padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp)
     ) {
-        // Numara rozeti
-        Box(
-            modifier = Modifier
-                .size(26.dp)
-                .background(
-                    if (isBookmarked) Green700 else Green700.copy(alpha = 0.12f),
-                    CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = verse.numberInSurah.toString(),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = if (isBookmarked) Color.White else Green700
-            )
+        // Numara + işaret
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.size(26.dp)
+                    .background(if (isBookmarked) Green700 else Green700.copy(alpha = 0.12f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(verse.numberInSurah.toString(), style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold, color = if (isBookmarked) Color.White else Green700)
+            }
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = onToggleBookmark, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                    contentDescription = if (isBookmarked) "İşareti kaldır" else "İşaret koy",
+                    tint = if (isBookmarked) Green700 else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
-        // Türkçe meal (Mehmet Okuyan)
-        Text(
-            text = verse.turkish,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            lineHeight = 22.sp
-        )
-        // İşaret butonu
-        IconButton(
-            onClick = onToggleBookmark,
-            modifier = Modifier.size(32.dp)
-        ) {
-            Icon(
-                imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                contentDescription = if (isBookmarked) "İşareti kaldır" else "Buraya işaret koy",
-                tint = if (isBookmarked) Green700 else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(18.dp)
-            )
+
+        Spacer(Modifier.height(6.dp))
+
+        when (viewMode) {
+            MealViewMode.MEAL -> MealModeContent(verse)
+            MealViewMode.KELIME_KELIME -> KelimeKelimeModeContent(verse)
         }
     }
+
     if (!isBookmarked) {
-        HorizontalDivider(
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-            modifier = Modifier.padding(horizontal = 12.dp)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+            modifier = Modifier.padding(horizontal = 12.dp))
+    }
+}
+
+/** MEAL modu: Türkçe meal + altında Arapça metin */
+@Composable
+private fun MealModeContent(verse: QuranVerse) {
+    // Türkçe meal
+    Text(
+        text = verse.turkish,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+        lineHeight = 22.sp
+    )
+    if (verse.arabic.isNotBlank()) {
+        Spacer(Modifier.height(8.dp))
+        // Arapça metin
+        Text(
+            text = verse.arabic,
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.bodyMedium.copy(
+                textDirection = TextDirection.Rtl,
+                textAlign = TextAlign.End,
+                fontSize = 17.sp,
+                lineHeight = 30.sp
+            ),
+            color = Green700.copy(alpha = 0.85f)
         )
+        // Arapça okunuş (transliterasyon)
+        if (verse.words.isNotEmpty()) {
+            val translit = verse.words.joinToString(" ") { it.transliteration }.trim()
+            if (translit.isNotBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = translit,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        textAlign = TextAlign.End,
+                        lineHeight = 18.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontStyle = FontStyle.Italic
+                )
+            }
+        }
+    }
+}
+
+/** KELIME KELIME modu: her Arapça kelimenin altında okunuşu ve Türkçe anlamı */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun KelimeKelimeModeContent(verse: QuranVerse) {
+    if (verse.words.isEmpty()) {
+        // Kelime verisi yoksa normal moda düş
+        MealModeContent(verse)
+        return
+    }
+    // RTL düzende kelime sütunları — her kelime: Arapça / okunuş / anlam
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            verse.words.forEach { word ->
+                WordColumn(word)
+            }
+        }
+    }
+    Spacer(Modifier.height(6.dp))
+    // Altında tam Türkçe meal (referans için)
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+        modifier = Modifier.padding(vertical = 4.dp))
+    Text(
+        text = verse.turkish,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        lineHeight = 18.sp
+    )
+}
+
+/** Tek kelime sütunu: Arapça üstte, okunuş ortada, Türkçe anlam altta */
+@Composable
+internal fun WordColumn(word: QuranWord) {
+    Column(
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 6.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Arapça kelime (RTL miras alır — doğru görünür)
+        Text(
+            text = word.arabic,
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp),
+            fontWeight = FontWeight.Bold,
+            color = Green700
+        )
+        // Okunuş ve anlam — LTR olmalı
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            if (word.transliteration.isNotBlank()) {
+                Text(
+                    text = word.transliteration,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontStyle = FontStyle.Italic,
+                    textAlign = TextAlign.Center
+                )
+            }
+            if (word.turkish.isNotBlank()) {
+                Text(
+                    text = word.turkish,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
     }
 }
