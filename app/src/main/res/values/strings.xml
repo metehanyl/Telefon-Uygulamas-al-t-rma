@@ -1,0 +1,42 @@
+<resources>
+    <string name="app_name">Şifre Kasası</string>
+
+    <string name="lock_create_title">Ana Şifreni Belirle</string>
+    <string name="lock_create_subtitle">Bu şifre, kayıtlı tüm şifrelerine erişimi korur. Unutmamaya dikkat et.</string>
+    <string name="lock_create_button">Kasayı Oluştur</string>
+
+    <string name="lock_enter_title">Hoş Geldin</string>
+    <string name="lock_enter_subtitle">Devam etmek için ana şifreni gir</string>
+    <string name="lock_enter_button">Kilidi Aç</string>
+
+    <string name="hint_master_password">Ana şifre</string>
+    <string name="hint_confirm_password">Ana şifreyi tekrar gir</string>
+
+    <string name="error_password_too_short">Şifre en az 4 karakter olmalı</string>
+    <string name="error_passwords_not_match">Şifreler eşleşmiyor</string>
+    <string name="error_wrong_password">Şifre yanlış</string>
+    <string name="error_required_fields">Site adı ve şifre zorunludur</string>
+
+    <string name="search_hint">Sitede ara…</string>
+    <string name="empty_state">Henüz kayıtlı şifren yok. Eklemek için + butonuna dokun.</string>
+
+    <string name="add_entry_title">Şifre Ekle</string>
+    <string name="edit_entry_title">Şifreyi Düzenle</string>
+
+    <string name="hint_site_name">Site adı (kısa ad, örn: Google)</string>
+    <string name="hint_site_domain">Site uzantısı (örn: google.com)</string>
+    <string name="hint_username">Kullanıcı adı / e-posta</string>
+    <string name="hint_password">Şifre</string>
+
+    <string name="save">Kaydet</string>
+    <string name="cancel">Vazgeç</string>
+    <string name="delete">Sil</string>
+    <string name="delete_confirm_title">Şifreyi Sil</string>
+    <string name="delete_confirm_message">%1$s için kayıtlı şifreyi silmek istediğine emin misin?</string>
+
+    <string name="show_hide_password">Şifreyi göster/gizle</string>
+    <string name="copy_password">Şifreyi kopyala</string>
+    <string name="password_copied">Şifre panoya kopyalandı</string>
+
+    <string name="action_lock">Kilitle</string>
+</resources>

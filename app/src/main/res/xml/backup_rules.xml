@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Backups are disabled for this app (android:allowBackup="false") because
+     the encryption key lives in the Android Keystore and cannot be restored
+     on another device or after a factory reset. This file is kept only for
+     reference and is unused while allowBackup is false. -->
+<full-backup-content>
+</full-backup-content>
