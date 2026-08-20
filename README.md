@@ -18,6 +18,26 @@ istenir.
 - Uygulama arka plana alındığında otomatik kilitlenir
 - `android:allowBackup="false"` — bulut yedeğiyle taşınamayan bir anahtara
   bağlı olduğu için yedekleme kapalı
+- **Chrome'dan toplu içe aktarma** (⋮ menü > "Chrome'dan İçe Aktar")
+
+## Chrome'daki şifreleri içe aktarma
+
+Android, hiçbir uygulamanın Chrome'un şifre kasasını doğrudan okumasına izin
+vermez (uygulama korumalı alanı/sandbox) — bu yüzden önce Chrome'dan şifreleri
+kendi CSV dosyan olarak dışa aktarman, sonra bu dosyayı Şifre Kasası'na
+göstermen gerekiyor:
+
+1. Chrome'da adres çubuğuna `chrome://password-manager/settings` yaz.
+2. **"Şifreleri dışa aktar"** seçeneğine dokun, cihaz kilidini (PIN/parmak izi)
+   onayla.
+3. CSV dosyasını cihazına kaydet (genelde **İndirilenler** klasörüne düşer).
+4. Şifre Kasası'nı aç, sağ üstteki ⋮ menüsünden **"Chrome'dan İçe Aktar"**'a
+   dokun, ardından "Dosya Seç" ile az önce indirdiğin CSV'yi seç.
+5. Uygulama her satırı okuyup şifreleri Keystore anahtarınla şifreleyerek
+   kaydeder; zaten kayıtlı olan (aynı site + kullanıcı adı) satırlar atlanır.
+6. **Önemli:** Chrome'un ürettiği CSV dosyası şifreleri düz metin (şifrelenmemiş)
+   olarak içerir. İçe aktarma bittikten sonra bu dosyayı İndirilenler
+   klasöründen silmeni öneririz.
 
 ## Nasıl kurulur
 
@@ -39,8 +59,9 @@ tarayıcısından o sayfadaki `app-debug.apk` dosyasına dokunup indir, ardında
 ```
 app/src/main/java/com/metehanyil/sifrekasasi/
 ├── crypto/     CryptoManager (AES-GCM, Keystore) ve MasterPasswordManager (PBKDF2 kilit)
-├── data/       Room: PasswordEntry, PasswordDao, AppDatabase
-└── ui/         LockActivity, MainActivity, AddEditActivity, PasswordAdapter
+├── data/       Room: PasswordEntry, PasswordDao, AppDatabase, PasswordImporter (Chrome CSV)
+├── ui/         LockActivity, MainActivity, AddEditActivity, PasswordAdapter
+└── util/       CsvParser
 ```
 
 ## Güvenlik notları

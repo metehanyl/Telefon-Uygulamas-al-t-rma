@@ -2,6 +2,12 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
+        android:id="@+id/action_import"
+        android:icon="@drawable/ic_import"
+        android:title="@string/action_import"
+        app:iconTint="@android:color/white"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_lock"
         android:icon="@drawable/ic_lock"
         android:title="@string/action_lock"

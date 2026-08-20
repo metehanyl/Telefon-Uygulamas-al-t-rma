@@ -4,11 +4,13 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.widget.SearchView
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -18,6 +20,7 @@ import com.metehanyil.sifrekasasi.R
 import com.metehanyil.sifrekasasi.crypto.CryptoManager
 import com.metehanyil.sifrekasasi.data.AppDatabase
 import com.metehanyil.sifrekasasi.data.PasswordEntry
+import com.metehanyil.sifrekasasi.data.PasswordImporter
 import com.metehanyil.sifrekasasi.databinding.ActivityMainBinding
 import kotlinx.coroutines.launch
 
@@ -26,6 +29,10 @@ class MainActivity : BaseActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var adapter: PasswordAdapter
     private var allEntries: List<PasswordEntry> = emptyList()
+
+    private val importCsvLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { runImport(it) }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -107,12 +114,63 @@ class MainActivity : BaseActivity() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == R.id.action_lock) {
-            AppLockState.isUnlocked = false
-            startActivity(Intent(this, LockActivity::class.java))
-            finish()
-            return true
+        when (item.itemId) {
+            R.id.action_lock -> {
+                AppLockState.isUnlocked = false
+                startActivity(Intent(this, LockActivity::class.java))
+                finish()
+                return true
+            }
+            R.id.action_import -> {
+                showImportIntroDialog()
+                return true
+            }
         }
         return super.onOptionsItemSelected(item)
+    }
+
+    private fun showImportIntroDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.import_intro_title))
+            .setMessage(getString(R.string.import_intro_message))
+            .setPositiveButton(getString(R.string.import_pick_file)) { _, _ ->
+                importCsvLauncher.launch(arrayOf("*/*"))
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
+    private fun runImport(uri: Uri) {
+        val progressDialog = MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.importing))
+            .setCancelable(false)
+            .show()
+
+        lifecycleScope.launch {
+            val dao = AppDatabase.getInstance(this@MainActivity).passwordDao()
+            val result = runCatching { PasswordImporter.importFromCsv(this@MainActivity, uri, dao) }
+            progressDialog.dismiss()
+
+            result.onSuccess { r ->
+                if (r.imported == 0 && r.skippedDuplicate == 0 && r.skippedInvalid > 0) {
+                    showSimpleDialog(getString(R.string.import_result_title), getString(R.string.import_error))
+                } else {
+                    showSimpleDialog(
+                        getString(R.string.import_result_title),
+                        getString(R.string.import_result_message, r.imported, r.skippedDuplicate, r.skippedInvalid)
+                    )
+                }
+            }.onFailure {
+                showSimpleDialog(getString(R.string.import_result_title), getString(R.string.import_error))
+            }
+        }
+    }
+
+    private fun showSimpleDialog(title: String, message: String) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton(getString(R.string.ok), null)
+            .show()
     }
 }

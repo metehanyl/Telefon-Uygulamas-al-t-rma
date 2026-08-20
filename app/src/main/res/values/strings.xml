@@ -39,4 +39,15 @@
     <string name="password_copied">Şifre panoya kopyalandı</string>
 
     <string name="action_lock">Kilitle</string>
+    <string name="action_import">Chrome\'dan İçe Aktar</string>
+
+    <string name="import_intro_title">Chrome Şifrelerini İçe Aktar</string>
+    <string name="import_intro_message">Önce Chrome\'dan şifrelerini bir CSV dosyası olarak dışa aktarman gerekiyor:\n\n1. Chrome\'da adres çubuğuna şunu yaz: chrome://password-manager/settings\n2. \"Şifreleri dışa aktar\" seçeneğine dokun ve cihaz kilidini onayla\n3. CSV dosyasını cihazına kaydet (genelde İndirilenler klasörüne)\n4. Aşağıdan o dosyayı seç\n\nNot: Bu dosya şifrelerini şifrelenmemiş (düz metin) olarak içerir. İçe aktarma bittikten sonra dosyayı cihazından silmeni öneririz.</string>
+    <string name="import_pick_file">Dosya Seç</string>
+
+    <string name="import_result_title">İçe Aktarma Tamamlandı</string>
+    <string name="import_result_message">%1$d şifre eklendi\n%2$d zaten kayıtlıydı (atlandı)\n%3$d satır okunamadı\n\nGüvenlik için Chrome\'dan dışa aktardığın CSV dosyasını şimdi cihazından silmeni öneririz.</string>
+    <string name="import_error">Dosya okunamadı ya da beklenen sütunlar (url, username, password) bulunamadı.</string>
+    <string name="importing">İçe aktarılıyor…</string>
+    <string name="ok">Tamam</string>
 </resources>

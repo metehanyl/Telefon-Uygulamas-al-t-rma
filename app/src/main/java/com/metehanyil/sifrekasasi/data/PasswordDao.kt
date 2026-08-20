@@ -13,6 +13,9 @@ interface PasswordDao {
     @Query("SELECT * FROM password_entries ORDER BY siteName COLLATE NOCASE ASC")
     fun getAll(): Flow<List<PasswordEntry>>
 
+    @Query("SELECT * FROM password_entries")
+    suspend fun getAllOnce(): List<PasswordEntry>
+
     @Query("SELECT * FROM password_entries WHERE id = :id")
     suspend fun getById(id: Long): PasswordEntry?
 
