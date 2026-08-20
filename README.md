@@ -15,7 +15,9 @@ istenir.
 - Şifreyi göster/gizle, panoya kopyalama
 - Şifre AES-256-GCM ile Android Keystore anahtarıyla şifrelenir (anahtar
   cihazdan asla çıkmaz)
-- Uygulama arka plana alındığında otomatik kilitlenir
+- Kilitleme sadece elle: sağ üstteki kilit simgesine dokununca kilitlenir.
+  Uygulama arka plana alınıp geri dönüldüğünde (ör. dosya seçici açmak için)
+  otomatik kilitlenmez.
 - `android:allowBackup="false"` — bulut yedeğiyle taşınamayan bir anahtara
   bağlı olduğu için yedekleme kapalı
 - **Chrome'dan toplu içe aktarma** (⋮ menü > "Chrome'dan İçe Aktar")

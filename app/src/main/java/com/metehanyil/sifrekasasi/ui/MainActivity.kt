@@ -16,13 +16,16 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.metehanyil.sifrekasasi.AppLockState
+import com.metehanyil.sifrekasasi.AppScope
 import com.metehanyil.sifrekasasi.R
 import com.metehanyil.sifrekasasi.crypto.CryptoManager
 import com.metehanyil.sifrekasasi.data.AppDatabase
 import com.metehanyil.sifrekasasi.data.PasswordEntry
 import com.metehanyil.sifrekasasi.data.PasswordImporter
 import com.metehanyil.sifrekasasi.databinding.ActivityMainBinding
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : BaseActivity() {
 
@@ -146,22 +149,33 @@ class MainActivity : BaseActivity() {
             .setCancelable(false)
             .show()
 
-        lifecycleScope.launch {
-            val dao = AppDatabase.getInstance(this@MainActivity).passwordDao()
-            val result = runCatching { PasswordImporter.importFromCsv(this@MainActivity, uri, dao) }
-            progressDialog.dismiss()
+        // Runs on an app-lifetime scope (not lifecycleScope): the system file
+        // picker briefly backgrounds this activity, and we don't want a
+        // recreation/finish in the meantime to cut the import off partway
+        // through. UI updates below check isFinishing/isDestroyed before
+        // touching this activity's views.
+        val dao = AppDatabase.getInstance(applicationContext).passwordDao()
+        val appContext = applicationContext
 
-            result.onSuccess { r ->
-                if (r.imported == 0 && r.skippedDuplicate == 0 && r.skippedInvalid > 0) {
+        AppScope.scope.launch {
+            val result = runCatching { PasswordImporter.importFromCsv(appContext, uri, dao) }
+
+            withContext(Dispatchers.Main) {
+                runCatching { progressDialog.dismiss() }
+                if (isFinishing || isDestroyed) return@withContext
+
+                result.onSuccess { r ->
+                    if (r.imported == 0 && r.skippedDuplicate == 0 && r.skippedInvalid > 0) {
+                        showSimpleDialog(getString(R.string.import_result_title), getString(R.string.import_error))
+                    } else {
+                        showSimpleDialog(
+                            getString(R.string.import_result_title),
+                            getString(R.string.import_result_message, r.imported, r.skippedDuplicate, r.skippedInvalid)
+                        )
+                    }
+                }.onFailure {
                     showSimpleDialog(getString(R.string.import_result_title), getString(R.string.import_error))
-                } else {
-                    showSimpleDialog(
-                        getString(R.string.import_result_title),
-                        getString(R.string.import_result_message, r.imported, r.skippedDuplicate, r.skippedInvalid)
-                    )
                 }
-            }.onFailure {
-                showSimpleDialog(getString(R.string.import_result_title), getString(R.string.import_error))
             }
         }
     }
