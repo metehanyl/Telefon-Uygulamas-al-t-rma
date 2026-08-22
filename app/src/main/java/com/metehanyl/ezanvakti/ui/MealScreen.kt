@@ -26,11 +26,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -429,13 +432,55 @@ fun MealTabContent() {
 
 @Composable
 private fun SurahListView(bookmark: MealBookmark?, onSelect: (Int) -> Unit) {
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val filtered = remember(searchQuery) {
+        if (searchQuery.isBlank()) ALL_SURAHS
+        else ALL_SURAHS.filter { meta ->
+            meta.nameTr.contains(searchQuery, ignoreCase = true) ||
+            meta.nameAr.contains(searchQuery) ||
+            meta.number.toString() == searchQuery.trim()
+        }
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         item { Spacer(Modifier.height(8.dp)) }
         item { MealHeader(bookmark = bookmark) }
-        items(ALL_SURAHS, key = { it.number }) { meta ->
+        item {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                placeholder = {
+                    Text("Sure ara (ad veya numara)…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                },
+                leadingIcon = { Icon(Icons.Default.Search, null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                trailingIcon = {
+                    if (searchQuery.isNotBlank()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Default.Clear, "Temizle",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp)
+            )
+        }
+        if (filtered.isEmpty()) {
+            item {
+                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                    Text("Sonuç bulunamadı", style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        items(filtered, key = { it.number }) { meta ->
             SurahListItem(
                 meta = meta,
                 isBookmarked = bookmark?.surahNumber == meta.number,
@@ -542,6 +587,13 @@ private fun SurahDetailView(
         try { content = fetchSurahContent(surahNumber, meta) }
         catch (e: Exception) { errorMsg = "İçerik yüklenemedi. İnternet bağlantınızı kontrol edin." }
         finally { isLoading = false }
+    }
+
+    // Transliterasyon için kelime verisi önbellekte yoksa ayrıca yükle
+    LaunchedEffect(surahNumber) {
+        if (WordDataCache.cache[surahNumber] == null) {
+            try { fetchWordData(surahNumber) } catch (_: Exception) { }
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -665,6 +717,7 @@ private fun SurahContentView(
             val isBookmarked = bookmark?.surahNumber == surahNumber && bookmark.verseNumber == verse.numberInSurah
             VerseRow(
                 verse = verse,
+                surahNumber = surahNumber,
                 viewMode = viewMode,
                 isBookmarked = isBookmarked,
                 onToggleBookmark = {
@@ -701,6 +754,7 @@ private fun BismillahCard() {
 @Composable
 private fun VerseRow(
     verse: QuranVerse,
+    surahNumber: Int,
     viewMode: MealViewMode,
     isBookmarked: Boolean,
     onToggleBookmark: () -> Unit
@@ -737,7 +791,7 @@ private fun VerseRow(
         Spacer(Modifier.height(6.dp))
 
         when (viewMode) {
-            MealViewMode.MEAL -> MealModeContent(verse)
+            MealViewMode.MEAL -> MealModeContent(verse, surahNumber)
             MealViewMode.KELIME_KELIME -> KelimeKelimeModeContent(verse)
         }
     }
@@ -748,9 +802,9 @@ private fun VerseRow(
     }
 }
 
-/** MEAL modu: Türkçe meal + altında Arapça metin */
+/** MEAL modu: Türkçe meal + altında Arapça metin + okunuş */
 @Composable
-private fun MealModeContent(verse: QuranVerse) {
+private fun MealModeContent(verse: QuranVerse, surahNumber: Int) {
     // Türkçe meal
     Text(
         text = verse.turkish,
@@ -772,25 +826,26 @@ private fun MealModeContent(verse: QuranVerse) {
             ),
             color = Green700.copy(alpha = 0.85f)
         )
-        // Arapça okunuş (transliterasyon)
-        if (verse.words.isNotEmpty()) {
-            val translit = verse.words.joinToString(" ") { it.transliteration }.trim()
-            if (translit.isNotBlank()) {
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = translit,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Green700.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        textAlign = TextAlign.End,
-                        lineHeight = 22.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
-                    fontStyle = FontStyle.Italic
-                )
-            }
+        // Arapça okunuş (transliterasyon) — verse.words veya önbellekten
+        val words = verse.words.ifEmpty {
+            WordDataCache.cache[surahNumber]?.get(verse.numberInSurah) ?: emptyList()
+        }
+        val translit = words.joinToString(" ") { it.transliteration }.trim()
+        if (translit.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = translit,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Green700.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    textAlign = TextAlign.End,
+                    lineHeight = 22.sp
+                ),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                fontStyle = FontStyle.Italic
+            )
         }
     }
 }

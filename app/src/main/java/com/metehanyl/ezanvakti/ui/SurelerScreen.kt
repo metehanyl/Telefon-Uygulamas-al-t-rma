@@ -57,221 +57,343 @@ import com.metehanyl.ezanvakti.ui.theme.Green700
 // Veri modeli
 // ---------------------------------------------------------------------------
 
+/** Tek bir ayet: Arapça metin, Türkçe fonetik okunuş ve Türkçe anlam */
+data class SurahVerseData(
+    val number: Int,
+    val arabic: String,
+    val transliteration: String,
+    val turkish: String
+)
+
 data class Surah(
     val number: Int,
     val nameTr: String,
     val nameAr: String,
     val verseCount: Int,
-    val arabicText: String,
-    val transliteration: String,  // Arapça okunuş (her zaman görünür, internet gerekmez)
-    val turkishMeaning: String    // Prof. Dr. Mehmet Okuyan meali
+    val verses: List<SurahVerseData>   // Her sure ayet bazında tutulur
 )
 
 // ---------------------------------------------------------------------------
-// Namaz Sureleri – Prof. Dr. Mehmet Okuyan Meali
+// Namaz Sureleri – Prof. Dr. Mehmet Okuyan Meali (ayet bazında)
 // ---------------------------------------------------------------------------
 
 val NAMAZ_SURELERI: List<Surah> = listOf(
 
+    // ── Fâtiha (1) ──────────────────────────────────────────────────────────
+    // Not: Fâtiha'da besmele 1. ayettir
     Surah(
-        number = 1,
-        nameTr = "Fâtiha",
-        nameAr = "الفاتحة",
-        verseCount = 7,
-        arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ ﴿١﴾ الرَّحْمَٰنِ الرَّحِيمِ ﴿٢﴾ مَالِكِ يَوْمِ الدِّينِ ﴿٣﴾ إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ ﴿٤﴾ اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ ﴿٥﴾ صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ ﴿٦﴾""",
-        transliteration = """Bismillahirrahmanirrahim.
-Elhamdü lillahi rabbil alemin. Errahmanirrahim. Maliki yevmiddin. İyyake na'büdü ve iyyake nesteın. İhdinessıratelmüstekim. Sıratelleziyne en'amte aleyhim, gayril mağdubi aleyhim ve leddallîn.""",
-        turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
-1. Hamd, âlemlerin Rabbi Allah'a aittir.
-2. O Rahman'dır, Rahim'dir.
-3. Din gününün sahibidir.
-4. Yalnız sana kulluk eder, yalnız senden yardım dileriz.
-5. Bizi dosdoğru yola ilet.
-6. Nimet verdiklerinin yoluna; gazaba uğrayanların ve sapkınların yoluna değil."""
+        number = 1, nameTr = "Fâtiha", nameAr = "الفاتحة", verseCount = 7,
+        verses = listOf(
+            SurahVerseData(1,
+                "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+                "Bismillahirrahmanirrahim",
+                "Rahman ve Rahim olan Allah'ın adıyla."),
+            SurahVerseData(2,
+                "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ",
+                "Elhamdü lillahi rabbil alemin",
+                "Hamd, âlemlerin Rabbi Allah'a aittir."),
+            SurahVerseData(3,
+                "الرَّحْمَٰنِ الرَّحِيمِ",
+                "Errahmanirrahim",
+                "O Rahman'dır, Rahim'dir."),
+            SurahVerseData(4,
+                "مَالِكِ يَوْمِ الدِّينِ",
+                "Maliki yevmiddin",
+                "Din gününün sahibidir."),
+            SurahVerseData(5,
+                "إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ",
+                "İyyake na'büdü ve iyyake nesteın",
+                "Yalnız sana kulluk eder, yalnız senden yardım dileriz."),
+            SurahVerseData(6,
+                "اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ",
+                "İhdinessıratelmüstekim",
+                "Bizi dosdoğru yola ilet."),
+            SurahVerseData(7,
+                "صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ",
+                "Sıratelleziyne en'amte aleyhim, gayril mağdubi aleyhim ve leddallîn",
+                "Nimet verdiklerinin yoluna; gazaba uğrayanların ve sapkınların yoluna değil.")
+        )
     ),
 
+    // ── Asr (103) ───────────────────────────────────────────────────────────
     Surah(
-        number = 103,
-        nameTr = "Asr",
-        nameAr = "العصر",
-        verseCount = 3,
-        arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-وَالْعَصْرِ ﴿١﴾ إِنَّ الْإِنسَانَ لَفِي خُسْرٍ ﴿٢﴾ إِلَّا الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ وَتَوَاصَوْا بِالْحَقِّ وَتَوَاصَوْا بِالصَّبْرِ ﴿٣﴾""",
-        transliteration = """Bismillahirrahmanirrahim.
-Vel asri. İnnel insane lefiy hüsrin. İllellezine amenu veamilüssalihati ve tevasav bilhakki ve tevasav bissabr.""",
-        turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
-1. Asra/zamana andolsun,
-2. Şüphesiz insan gerçekten hüsran içindedir.
-3. Ancak iman edip salih amel işleyenler, birbirlerine hakkı tavsiye edenler ve birbirlerine sabrı tavsiye edenler bunun dışındadır."""
+        number = 103, nameTr = "Asr", nameAr = "العصر", verseCount = 3,
+        verses = listOf(
+            SurahVerseData(1,
+                "وَالْعَصْرِ",
+                "Vel asri",
+                "Asra/zamana andolsun,"),
+            SurahVerseData(2,
+                "إِنَّ الْإِنسَانَ لَفِي خُسْرٍ",
+                "İnnel insane lefiy hüsrin",
+                "Şüphesiz insan gerçekten hüsran içindedir."),
+            SurahVerseData(3,
+                "إِلَّا الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ وَتَوَاصَوْا بِالْحَقِّ وَتَوَاصَوْا بِالصَّبْرِ",
+                "İllellezine amenu veamilüssalihati ve tevasav bilhakki ve tevasav bissabr",
+                "Ancak iman edip salih amel işleyenler, birbirlerine hakkı tavsiye edenler ve birbirlerine sabrı tavsiye edenler bunun dışındadır.")
+        )
     ),
 
+    // ── Fîl (105) ───────────────────────────────────────────────────────────
     Surah(
-        number = 105,
-        nameTr = "Fîl",
-        nameAr = "الفيل",
-        verseCount = 5,
-        arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-أَلَمْ تَرَ كَيْفَ فَعَلَ رَبُّكَ بِأَصْحَابِ الْفِيلِ ﴿١﴾ أَلَمْ يَجْعَلْ كَيْدَهُمْ فِي تَضْلِيلٍ ﴿٢﴾ وَأَرْسَلَ عَلَيْهِمْ طَيْرًا أَبَابِيلَ ﴿٣﴾ تَرْمِيهِم بِحِجَارَةٍ مِّن سِجِّيلٍ ﴿٤﴾ فَجَعَلَهُمْ كَعَصْفٍ مَّأْكُولٍ ﴿٥﴾""",
-        transliteration = """Bismillahirrahmanirrahim.
-Elem tera keyfe feale rabbüke bi ashabil fil. Elem yec'al keydehüm fi tadlil. Ve ersele aleyhim tayran ebebile. Termihim bihicaratin min siccil. Fece'alehüm ke'asfin me'kul.""",
-        turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
-1. Rabbin, fil sahiplerine ne yaptı; görmedin mi?
-2. Onların düzenlerini/tuzaklarını boşa çıkarmadı mı?
-3. Üzerlerine sürüler hâlinde Ebabil kuşları gönderdi.
-4. Onlara pişirilmiş çamurdan taşlar attırdı.
-5. Böylece onları yenilmiş ekin sapı gibi ezip geçirdi."""
+        number = 105, nameTr = "Fîl", nameAr = "الفيل", verseCount = 5,
+        verses = listOf(
+            SurahVerseData(1,
+                "أَلَمْ تَرَ كَيْفَ فَعَلَ رَبُّكَ بِأَصْحَابِ الْفِيلِ",
+                "Elem tera keyfe feale rabbüke bi ashabil fil",
+                "Rabbin, fil sahiplerine ne yaptı; görmedin mi?"),
+            SurahVerseData(2,
+                "أَلَمْ يَجْعَلْ كَيْدَهُمْ فِي تَضْلِيلٍ",
+                "Elem yec'al keydehüm fi tadlil",
+                "Onların düzenlerini/tuzaklarını boşa çıkarmadı mı?"),
+            SurahVerseData(3,
+                "وَأَرْسَلَ عَلَيْهِمْ طَيْرًا أَبَابِيلَ",
+                "Ve ersele aleyhim tayran ebebile",
+                "Üzerlerine sürüler hâlinde Ebabil kuşları gönderdi."),
+            SurahVerseData(4,
+                "تَرْمِيهِم بِحِجَارَةٍ مِّن سِجِّيلٍ",
+                "Termihim bihicaratin min siccil",
+                "Onlara pişirilmiş çamurdan taşlar attırdı."),
+            SurahVerseData(5,
+                "فَجَعَلَهُمْ كَعَصْفٍ مَّأْكُولٍ",
+                "Fece'alehüm ke'asfin me'kul",
+                "Böylece onları yenilmiş ekin sapı gibi ezip geçirdi.")
+        )
     ),
 
+    // ── Kureyş (106) ────────────────────────────────────────────────────────
     Surah(
-        number = 106,
-        nameTr = "Kureyş",
-        nameAr = "قريش",
-        verseCount = 4,
-        arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-لِإِيلَافِ قُرَيْشٍ ﴿١﴾ إِيلَافِهِمْ رِحْلَةَ الشِّتَاءِ وَالصَّيْفِ ﴿٢﴾ فَلْيَعْبُدُوا رَبَّ هَٰذَا الْبَيْتِ ﴿٣﴾ الَّذِي أَطْعَمَهُم مِّن جُوعٍ وَآمَنَهُم مِّنْ خَوْفٍ ﴿٤﴾""",
-        transliteration = """Bismillahirrahmanirrahim.
-Li'ilafi Kureyşin. İylafihim rihletesşita'i vessayfi. Felyabudu rabbe hazelbeyti. Ellezi et'amehüm min cu'in ve amenehüm min havf.""",
-        turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
-1. Kureyş'in yolculuklarına/ticaretlerine alıştırıldığı için,
-2. Onların kış ve yaz yolculuklarına alıştırıldıkları için.
-3. O hâlde bu evin Rabbine kulluk etsinler.
-4. O ki onları açlıktan doyurmuş ve korkudan güvene kavuşturmuştur."""
+        number = 106, nameTr = "Kureyş", nameAr = "قريش", verseCount = 4,
+        verses = listOf(
+            SurahVerseData(1,
+                "لِإِيلَافِ قُرَيْشٍ",
+                "Li'ilafi Kureyşin",
+                "Kureyş'in yolculuklarına/ticaretlerine alıştırıldığı için,"),
+            SurahVerseData(2,
+                "إِيلَافِهِمْ رِحْلَةَ الشِّتَاءِ وَالصَّيْفِ",
+                "İylafihim rihletesşita'i vessayfi",
+                "Onların kış ve yaz yolculuklarına alıştırıldıkları için."),
+            SurahVerseData(3,
+                "فَلْيَعْبُدُوا رَبَّ هَٰذَا الْبَيْتِ",
+                "Felyabudu rabbe hazelbeyti",
+                "O hâlde bu evin Rabbine kulluk etsinler."),
+            SurahVerseData(4,
+                "الَّذِي أَطْعَمَهُم مِّن جُوعٍ وَآمَنَهُم مِّنْ خَوْفٍ",
+                "Ellezi et'amehüm min cu'in ve amenehüm min havf",
+                "O ki onları açlıktan doyurmuş ve korkudan güvene kavuşturmuştur.")
+        )
     ),
 
+    // ── Mâun (107) ──────────────────────────────────────────────────────────
     Surah(
-        number = 107,
-        nameTr = "Mâun",
-        nameAr = "الماعون",
-        verseCount = 7,
-        arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-أَرَأَيْتَ الَّذِي يُكَذِّبُ بِالدِّينِ ﴿١﴾ فَذَٰلِكَ الَّذِي يَدُعُّ الْيَتِيمَ ﴿٢﴾ وَلَا يَحُضُّ عَلَىٰ طَعَامِ الْمِسْكِينِ ﴿٣﴾ فَوَيْلٌ لِّلْمُصَلِّينَ ﴿٤﴾ الَّذِينَ هُمْ عَن صَلَاتِهِمْ سَاهُونَ ﴿٥﴾ الَّذِينَ هُمْ يُرَاءُونَ ﴿٦﴾ وَيَمْنَعُونَ الْمَاعُونَ ﴿٧﴾""",
-        transliteration = """Bismillahirrahmanirrahim.
-Eraeytellezi yükezzibü biddini. Fezalikellezi yedüül yetime. Ve la yehuddu ala taamil miskini. Fevevylün lilmüsalline. Ellezine hüm an salatihim sahune. Ellezine hüm yüraune. Ve yemne'unel maune.""",
-        turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
-1. Dini/hesap gününü yalanlayanı gördün mü?
-2. İşte o, yetimi şiddetle iter.
-3. Yoksulun doyurulmasına teşvik etmez.
-4. Vay hâline o namaz kılanlara ki,
-5. Onlar namazlarından gafildirler.
-6. Onlar gösteriş için yaparlar.
-7. Yardımı/zekâtı da engellerler."""
+        number = 107, nameTr = "Mâun", nameAr = "الماعون", verseCount = 7,
+        verses = listOf(
+            SurahVerseData(1,
+                "أَرَأَيْتَ الَّذِي يُكَذِّبُ بِالدِّينِ",
+                "Eraeytellezi yükezzibü biddini",
+                "Dini/hesap gününü yalanlayanı gördün mü?"),
+            SurahVerseData(2,
+                "فَذَٰلِكَ الَّذِي يَدُعُّ الْيَتِيمَ",
+                "Fezalikellezi yedüül yetime",
+                "İşte o, yetimi şiddetle iter."),
+            SurahVerseData(3,
+                "وَلَا يَحُضُّ عَلَىٰ طَعَامِ الْمِسْكِينِ",
+                "Ve la yehuddu ala taamil miskini",
+                "Yoksulun doyurulmasına teşvik etmez."),
+            SurahVerseData(4,
+                "فَوَيْلٌ لِّلْمُصَلِّينَ",
+                "Fevevylün lilmüsalline",
+                "Vay hâline o namaz kılanlara ki,"),
+            SurahVerseData(5,
+                "الَّذِينَ هُمْ عَن صَلَاتِهِمْ سَاهُونَ",
+                "Ellezine hüm an salatihim sahune",
+                "Onlar namazlarından gafildirler."),
+            SurahVerseData(6,
+                "الَّذِينَ هُمْ يُرَاءُونَ",
+                "Ellezine hüm yüraune",
+                "Onlar gösteriş için yaparlar."),
+            SurahVerseData(7,
+                "وَيَمْنَعُونَ الْمَاعُونَ",
+                "Ve yemne'unel maune",
+                "Yardımı/zekâtı da engellerler.")
+        )
     ),
 
+    // ── Kevser (108) ────────────────────────────────────────────────────────
     Surah(
-        number = 108,
-        nameTr = "Kevser",
-        nameAr = "الكوثر",
-        verseCount = 3,
-        arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ ﴿١﴾ فَصَلِّ لِرَبِّكَ وَانْحَرْ ﴿٢﴾ إِنَّ شَانِئَكَ هُوَ الْأَبْتَرُ ﴿٣﴾""",
-        transliteration = """Bismillahirrahmanirrahim.
-İnna a'taynakel kevser. Fasalli lirabbike venhar. İnne şanie'ke huvel ebter.""",
-        turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
-1. Şüphesiz biz sana Kevser'i verdik.
-2. O hâlde Rabbin için namaz kıl ve kurban kes.
-3. Şüphesiz sana kin güden, işte o kökü kesik olandır."""
+        number = 108, nameTr = "Kevser", nameAr = "الكوثر", verseCount = 3,
+        verses = listOf(
+            SurahVerseData(1,
+                "إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ",
+                "İnna a'taynakel kevser",
+                "Şüphesiz biz sana Kevser'i verdik."),
+            SurahVerseData(2,
+                "فَصَلِّ لِرَبِّكَ وَانْحَرْ",
+                "Fasalli lirabbike venhar",
+                "O hâlde Rabbin için namaz kıl ve kurban kes."),
+            SurahVerseData(3,
+                "إِنَّ شَانِئَكَ هُوَ الْأَبْتَرُ",
+                "İnne şanie'ke huvel ebter",
+                "Şüphesiz sana kin güden, işte o kökü kesik olandır.")
+        )
     ),
 
+    // ── Kâfirûn (109) ───────────────────────────────────────────────────────
     Surah(
-        number = 109,
-        nameTr = "Kâfirûn",
-        nameAr = "الكافرون",
-        verseCount = 6,
-        arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-قُلْ يَا أَيُّهَا الْكَافِرُونَ ﴿١﴾ لَا أَعْبُدُ مَا تَعْبُدُونَ ﴿٢﴾ وَلَا أَنتُمْ عَابِدُونَ مَا أَعْبُدُ ﴿٣﴾ وَلَا أَنَا عَابِدٌ مَّا عَبَدتُّمْ ﴿٤﴾ وَلَا أَنتُمْ عَابِدُونَ مَا أَعْبُدُ ﴿٥﴾ لَكُمْ دِينُكُمْ وَلِيَ دِينِ ﴿٦﴾""",
-        transliteration = """Bismillahirrahmanirrahim.
-Kul ya eyyühel kafirune. La a'büdü ma ta'büdune. Ve la entüm abidune ma a'büdü. Ve la ene abidün ma abedtüm. Ve la entüm abidune ma a'büdü. Leküm dinüküm ve liye din.""",
-        turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
-1. De ki: Ey kâfirler!
-2. Ben sizin taptıklarınıza tapmam.
-3. Siz de benim taptığıma tapıcılar değilsiniz.
-4. Ben de sizin taptıklarınıza tapacak değilim.
-5. Siz de benim taptığıma tapacak değilsiniz.
-6. Sizin dininiz size, benim dinim bana."""
+        number = 109, nameTr = "Kâfirûn", nameAr = "الكافرون", verseCount = 6,
+        verses = listOf(
+            SurahVerseData(1,
+                "قُلْ يَا أَيُّهَا الْكَافِرُونَ",
+                "Kul ya eyyühel kafirune",
+                "De ki: Ey kâfirler!"),
+            SurahVerseData(2,
+                "لَا أَعْبُدُ مَا تَعْبُدُونَ",
+                "La a'büdü ma ta'büdune",
+                "Ben sizin taptıklarınıza tapmam."),
+            SurahVerseData(3,
+                "وَلَا أَنتُمْ عَابِدُونَ مَا أَعْبُدُ",
+                "Ve la entüm abidune ma a'büdü",
+                "Siz de benim taptığıma tapıcılar değilsiniz."),
+            SurahVerseData(4,
+                "وَلَا أَنَا عَابِدٌ مَّا عَبَدتُّمْ",
+                "Ve la ene abidün ma abedtüm",
+                "Ben de sizin taptıklarınıza tapacak değilim."),
+            SurahVerseData(5,
+                "وَلَا أَنتُمْ عَابِدُونَ مَا أَعْبُدُ",
+                "Ve la entüm abidune ma a'büdü",
+                "Siz de benim taptığıma tapacak değilsiniz."),
+            SurahVerseData(6,
+                "لَكُمْ دِينُكُمْ وَلِيَ دِينِ",
+                "Leküm dinüküm ve liye din",
+                "Sizin dininiz size, benim dinim bana.")
+        )
     ),
 
+    // ── Nasr (110) ──────────────────────────────────────────────────────────
     Surah(
-        number = 110,
-        nameTr = "Nasr",
-        nameAr = "النصر",
-        verseCount = 3,
-        arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-إِذَا جَاءَ نَصْرُ اللَّهِ وَالْفَتْحُ ﴿١﴾ وَرَأَيْتَ النَّاسَ يَدْخُلُونَ فِي دِينِ اللَّهِ أَفْوَاجًا ﴿٢﴾ فَسَبِّحْ بِحَمْدِ رَبِّكَ وَاسْتَغْفِرْهُ إِنَّهُ كَانَ تَوَّابًا ﴿٣﴾""",
-        transliteration = """Bismillahirrahmanirrahim.
-İza cae nasrullahi vel fethu. Ve raeytennase yedhulune fi dinillahi efvaca. Fesabbih bihamdi rabbike vestağfirhu. İnnehu kane tevvaba.""",
-        turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
-1. Allah'ın yardımı ve fetih geldiğinde,
-2. İnsanların Allah'ın dinine akın akın girdiğini gördüğünde,
-3. Rabbini hamd ile tesbih et ve O'ndan mağfiret dile. Şüphesiz O, tevbeleri çok kabul edendir."""
+        number = 110, nameTr = "Nasr", nameAr = "النصر", verseCount = 3,
+        verses = listOf(
+            SurahVerseData(1,
+                "إِذَا جَاءَ نَصْرُ اللَّهِ وَالْفَتْحُ",
+                "İza cae nasrullahi vel fethu",
+                "Allah'ın yardımı ve fetih geldiğinde,"),
+            SurahVerseData(2,
+                "وَرَأَيْتَ النَّاسَ يَدْخُلُونَ فِي دِينِ اللَّهِ أَفْوَاجًا",
+                "Ve raeytennase yedhulune fi dinillahi efvaca",
+                "İnsanların Allah'ın dinine akın akın girdiğini gördüğünde,"),
+            SurahVerseData(3,
+                "فَسَبِّحْ بِحَمْدِ رَبِّكَ وَاسْتَغْفِرْهُ إِنَّهُ كَانَ تَوَّابًا",
+                "Fesabbih bihamdi rabbike vestağfirhu innehu kane tevvaba",
+                "Rabbini hamd ile tesbih et ve O'ndan mağfiret dile. Şüphesiz O, tevbeleri çok kabul edendir.")
+        )
     ),
 
+    // ── Tebbet (111) ────────────────────────────────────────────────────────
     Surah(
-        number = 111,
-        nameTr = "Tebbet",
-        nameAr = "المسد",
-        verseCount = 5,
-        arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-تَبَّتْ يَدَا أَبِي لَهَبٍ وَتَبَّ ﴿١﴾ مَا أَغْنَىٰ عَنْهُ مَالُهُ وَمَا كَسَبَ ﴿٢﴾ سَيَصْلَىٰ نَارًا ذَاتَ لَهَبٍ ﴿٣﴾ وَامْرَأَتُهُ حَمَّالَةَ الْحَطَبِ ﴿٤﴾ فِي جِيدِهَا حَبْلٌ مِّن مَّسَدٍ ﴿٥﴾""",
-        transliteration = """Bismillahirrahmanirrahim.
-Tebbet yeda ebi lehebin ve tebb. Ma ağna anhü malühu ve ma kesebe. Seyasla naren zate leheb. Vemraetühu hammaletelhutab. Fi ciydiha hablün min mesed.""",
-        turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
-1. Ebu Leheb'in iki eli kurusun! Zaten kurudu.
-2. Malı ve kazandıkları ona fayda vermedi.
-3. O, alevli bir ateşe girecektir.
-4. Karısı da; odun taşıyıcı olarak.
-5. Boynunda hurma lifinden bükülmüş bir ip olacaktır."""
+        number = 111, nameTr = "Tebbet", nameAr = "المسد", verseCount = 5,
+        verses = listOf(
+            SurahVerseData(1,
+                "تَبَّتْ يَدَا أَبِي لَهَبٍ وَتَبَّ",
+                "Tebbet yeda ebi lehebin ve tebb",
+                "Ebu Leheb'in iki eli kurusun! Zaten kurudu."),
+            SurahVerseData(2,
+                "مَا أَغْنَىٰ عَنْهُ مَالُهُ وَمَا كَسَبَ",
+                "Ma ağna anhü malühu ve ma kesebe",
+                "Malı ve kazandıkları ona fayda vermedi."),
+            SurahVerseData(3,
+                "سَيَصْلَىٰ نَارًا ذَاتَ لَهَبٍ",
+                "Seyasla naren zate leheb",
+                "O, alevli bir ateşe girecektir."),
+            SurahVerseData(4,
+                "وَامْرَأَتُهُ حَمَّالَةَ الْحَطَبِ",
+                "Vemraetühu hammaletelhutab",
+                "Karısı da; odun taşıyıcı olarak."),
+            SurahVerseData(5,
+                "فِي جِيدِهَا حَبْلٌ مِّن مَّسَدٍ",
+                "Fi ciydiha hablün min mesed",
+                "Boynunda hurma lifinden bükülmüş bir ip olacaktır.")
+        )
     ),
 
+    // ── İhlâs (112) ─────────────────────────────────────────────────────────
     Surah(
-        number = 112,
-        nameTr = "İhlâs",
-        nameAr = "الإخلاص",
-        verseCount = 4,
-        arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-قُلْ هُوَ اللَّهُ أَحَدٌ ﴿١﴾ اللَّهُ الصَّمَدُ ﴿٢﴾ لَمْ يَلِدْ وَلَمْ يُولَدْ ﴿٣﴾ وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ ﴿٤﴾""",
-        transliteration = """Bismillahirrahmanirrahim.
-Kul hüvallahü ehad. Allahüssamed. Lem yelid ve lem yüled. Ve lem yekün lehü küfüven ehad.""",
-        turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
-1. De ki: O, Allah Ehad'dır (tektir, eşsizdir).
-2. Allah Samed'dir; her şey O'na muhtaçtır, O hiçbir şeye muhtaç değildir.
-3. O doğurmamıştır, doğurulmamıştır.
-4. Hiçbir şey O'nun dengi değildir."""
+        number = 112, nameTr = "İhlâs", nameAr = "الإخلاص", verseCount = 4,
+        verses = listOf(
+            SurahVerseData(1,
+                "قُلْ هُوَ اللَّهُ أَحَدٌ",
+                "Kul hüvallahü ehad",
+                "De ki: O, Allah Ehad'dır (tektir, eşsizdir)."),
+            SurahVerseData(2,
+                "اللَّهُ الصَّمَدُ",
+                "Allahüssamed",
+                "Allah Samed'dir; her şey O'na muhtaçtır, O hiçbir şeye muhtaç değildir."),
+            SurahVerseData(3,
+                "لَمْ يَلِدْ وَلَمْ يُولَدْ",
+                "Lem yelid ve lem yuled",
+                "O doğurmamıştır, doğurulmamıştır."),
+            SurahVerseData(4,
+                "وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ",
+                "Ve lem yekun lehü küfüven ehad",
+                "Hiçbir şey O'nun dengi değildir.")
+        )
     ),
 
+    // ── Felak (113) ─────────────────────────────────────────────────────────
     Surah(
-        number = 113,
-        nameTr = "Felak",
-        nameAr = "الفلق",
-        verseCount = 5,
-        arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ ﴿١﴾ مِن شَرِّ مَا خَلَقَ ﴿٢﴾ وَمِن شَرِّ غَاسِقٍ إِذَا وَقَبَ ﴿٣﴾ وَمِن شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ ﴿٤﴾ وَمِن شَرِّ حَاسِدٍ إِذَا حَسَدَ ﴿٥﴾""",
-        transliteration = """Bismillahirrahmanirrahim.
-Kul euzü birabbil felaki. Min şerri ma halaka. Ve min şerri gasikin iza vekabe. Ve min şerrin neffasati fil ukadi. Ve min şerri hasidin iza hased.""",
-        turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
-1. De ki: Sabahın Rabbine sığınırım.
-2. Yarattığı şeylerin şerrinden,
-3. Bastırınca gecenin şerrinden,
-4. Düğümlere üfleyen büyücülerin şerrinden,
-5. Kıskandığında kıskananın şerrinden."""
+        number = 113, nameTr = "Felak", nameAr = "الفلق", verseCount = 5,
+        verses = listOf(
+            SurahVerseData(1,
+                "قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ",
+                "Kul euzü birabbil felaki",
+                "De ki: Sabahın Rabbine sığınırım."),
+            SurahVerseData(2,
+                "مِن شَرِّ مَا خَلَقَ",
+                "Min şerri ma halaka",
+                "Yarattığı şeylerin şerrinden,"),
+            SurahVerseData(3,
+                "وَمِن شَرِّ غَاسِقٍ إِذَا وَقَبَ",
+                "Ve min şerri gasikin iza vekabe",
+                "Bastırınca gecenin şerrinden,"),
+            SurahVerseData(4,
+                "وَمِن شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ",
+                "Ve min şerrin neffasati fil ukadi",
+                "Düğümlere üfleyen büyücülerin şerrinden,"),
+            SurahVerseData(5,
+                "وَمِن شَرِّ حَاسِدٍ إِذَا حَسَدَ",
+                "Ve min şerri hasidin iza hased",
+                "Kıskandığında kıskananın şerrinden.")
+        )
     ),
 
+    // ── Nâs (114) ───────────────────────────────────────────────────────────
     Surah(
-        number = 114,
-        nameTr = "Nâs",
-        nameAr = "الناس",
-        verseCount = 6,
-        arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-قُلْ أَعُوذُ بِرَبِّ النَّاسِ ﴿١﴾ مَلِكِ النَّاسِ ﴿٢﴾ إِلَٰهِ النَّاسِ ﴿٣﴾ مِن شَرِّ الْوَسْوَاسِ الْخَنَّاسِ ﴿٤﴾ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ ﴿٥﴾ مِنَ الْجِنَّةِ وَالنَّاسِ ﴿٦﴾""",
-        transliteration = """Bismillahirrahmanirrahim.
-Kul euzü birabbin nasi. Melihin nasi. İlahin nasi. Min şerril vesvasisil hannasi. Ellezi yüvesvisu fi sudürin nasi. Minel cinneti ven nasi.""",
-        turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
-1. De ki: İnsanların Rabbine sığınırım.
-2. İnsanların melikine/hükümdarına.
-3. İnsanların ilahına.
-4. Sinsi vesvesecinin şerrinden;
-5. O ki insanların göğüslerine vesvese verir.
-6. Cinlerden ve insanlardan."""
+        number = 114, nameTr = "Nâs", nameAr = "الناس", verseCount = 6,
+        verses = listOf(
+            SurahVerseData(1,
+                "قُلْ أَعُوذُ بِرَبِّ النَّاسِ",
+                "Kul euzü birabbin nasi",
+                "De ki: İnsanların Rabbine sığınırım."),
+            SurahVerseData(2,
+                "مَلِكِ النَّاسِ",
+                "Melihin nasi",
+                "İnsanların melikine/hükümdarına."),
+            SurahVerseData(3,
+                "إِلَٰهِ النَّاسِ",
+                "İlahin nasi",
+                "İnsanların ilahına."),
+            SurahVerseData(4,
+                "مِن شَرِّ الْوَسْوَاسِ الْخَنَّاسِ",
+                "Min şerril vesvasisil hannasi",
+                "Sinsi vesvesecinin şerrinden;"),
+            SurahVerseData(5,
+                "الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ",
+                "Ellezi yüvesvisu fi sudürin nasi",
+                "O ki insanların göğüslerine vesvese verir."),
+            SurahVerseData(6,
+                "مِنَ الْجِنَّةِ وَالنَّاسِ",
+                "Minel cinneti ven nasi",
+                "Cinlerden ve insanlardan.")
+        )
     )
 )
 
@@ -288,7 +410,6 @@ fun SurelerTabContent() {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item { SurelerHeader() }
-
         items(NAMAZ_SURELERI, key = { it.number }) { surah ->
             SurahCard(surah)
         }
@@ -302,9 +423,7 @@ private fun SurelerHeader() {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
@@ -315,10 +434,11 @@ private fun SurelerHeader() {
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
             Text(
-                text = "Prof. Dr. Mehmet Okuyan Meali",
+                text = "Prof. Dr. Mehmet Okuyan Meali · Ayet ayet okunuş ve anlam",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontStyle = FontStyle.Italic
+                fontStyle = FontStyle.Italic,
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -328,7 +448,6 @@ private fun SurelerHeader() {
 private fun SurahCard(surah: Surah) {
     var expanded by rememberSaveable(surah.number) { mutableStateOf(false) }
     var viewMode by rememberSaveable(surah.number) { mutableStateOf(MealViewMode.MEAL) }
-    // null = henüz yüklenmedi, emptyMap = yükleme başarısız/boş, dolu map = hazır (Kelime Kelime için)
     var wordData by remember { mutableStateOf<Map<Int, List<QuranWord>>?>(null) }
 
     // Kelime Kelime moduna geçilince veri yükle
@@ -344,7 +463,7 @@ private fun SurahCard(surah: Surah) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Başlık satırı — her zaman görünür, tıklanabilir
+            // Başlık satırı
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -378,10 +497,12 @@ private fun SurahCard(surah: Surah) {
             // Genişletilmiş içerik
             AnimatedVisibility(visible = expanded, enter = expandVertically(), exit = shrinkVertically()) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp)
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 16.dp)
                 ) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     // Mod seçici
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -401,7 +522,7 @@ private fun SurahCard(surah: Surah) {
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     when (viewMode) {
                         MealViewMode.MEAL -> SurahMealContent(surah)
@@ -414,49 +535,113 @@ private fun SurahCard(surah: Surah) {
 }
 
 // ---------------------------------------------------------------------------
-// Meâl modu: Arapça → Okunuş → Türkçe anlam
+// Meâl modu: Besmele başlığı + her ayet ayrı (Arapça → Okunuş → Türkçe)
 // ---------------------------------------------------------------------------
 
 @Composable
 private fun SurahMealContent(surah: Surah) {
-    // Arapça metin (sağdan sola)
-    Text(
-        text = surah.arabicText,
-        style = MaterialTheme.typography.bodyLarge.copy(
-            textDirection = TextDirection.Rtl,
-            textAlign = TextAlign.End,
-            lineHeight = 34.sp,
-            fontSize = 18.sp
-        ),
-        modifier = Modifier.fillMaxWidth()
-    )
-
-    // Okunuş (her zaman görünür — sabit metin, internet gerekmez)
-    if (surah.transliteration.isNotBlank()) {
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = surah.transliteration,
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    color = Green700.copy(alpha = 0.06f),
-                    shape = RoundedCornerShape(8.dp)
-                )
-                .padding(horizontal = 10.dp, vertical = 8.dp),
-            style = MaterialTheme.typography.bodyMedium.copy(
-                lineHeight = 22.sp
-            ),
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
-            fontStyle = FontStyle.Italic
-        )
+    // Fâtiha'da besmele zaten 1. ayet; diğer surelerde ayrı başlık olarak göster
+    if (surah.number != 1) {
+        BesmeleHeaderCard()
+        Spacer(Modifier.height(12.dp))
     }
 
-    Spacer(modifier = Modifier.height(14.dp))
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-    Spacer(modifier = Modifier.height(12.dp))
+    surah.verses.forEachIndexed { index, verse ->
+        if (index > 0) Spacer(Modifier.height(10.dp))
+        SurahVerseBlock(verse)
+        if (index < surah.verses.lastIndex) {
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+}
 
-    // Türkçe anlam
-    Text(text = surah.turkishMeaning, style = MaterialTheme.typography.bodyMedium, lineHeight = 22.sp)
+@Composable
+private fun BesmeleHeaderCard() {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+        )
+    ) {
+        Text(
+            text = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 16.dp),
+            style = MaterialTheme.typography.titleLarge.copy(
+                textDirection = TextDirection.Rtl,
+                textAlign = TextAlign.Center,
+                fontSize = 20.sp,
+                lineHeight = 32.sp
+            ),
+            color = Green700
+        )
+    }
+}
+
+@Composable
+private fun SurahVerseBlock(verse: SurahVerseData) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        // Ayet numarası rozeti
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .background(Green700.copy(alpha = 0.15f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = verse.number.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                color = Green700,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            // Arapça metin (sağdan sola)
+            Text(
+                text = verse.arabic,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    textDirection = TextDirection.Rtl,
+                    textAlign = TextAlign.End,
+                    fontSize = 19.sp,
+                    lineHeight = 34.sp
+                ),
+                color = Green700.copy(alpha = 0.9f)
+            )
+
+            // Türkçe fonetik okunuş (yeşil arka plan kutusu)
+            if (verse.transliteration.isNotBlank()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = verse.transliteration,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Green700.copy(alpha = 0.07f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                    style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                    fontStyle = FontStyle.Italic
+                )
+            }
+
+            // Türkçe anlam
+            if (verse.turkish.isNotBlank()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = verse.turkish,
+                    style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -467,7 +652,6 @@ private fun SurahMealContent(surah: Surah) {
 @Composable
 private fun SurahKelimeKelimeContent(surah: Surah, wordData: Map<Int, List<QuranWord>>?) {
     if (wordData.isNullOrEmpty()) {
-        // Veri yüklenene kadar / yüklenemezse normal mod göster
         SurahMealContent(surah)
         return
     }
@@ -481,9 +665,11 @@ private fun SurahKelimeKelimeContent(surah: Surah, wordData: Map<Int, List<Quran
             allWords.forEach { word -> WordColumn(word) }
         }
     }
-    Spacer(Modifier.height(6.dp))
+    Spacer(Modifier.height(8.dp))
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
         modifier = Modifier.padding(vertical = 4.dp))
-    Text(text = surah.turkishMeaning, style = MaterialTheme.typography.bodySmall,
+    // Türkçe meâl referansı (tüm ayetler birleşik)
+    val fullMeaning = surah.verses.joinToString("\n") { "${it.number}. ${it.turkish}" }
+    Text(text = fullMeaning, style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 18.sp)
 }
