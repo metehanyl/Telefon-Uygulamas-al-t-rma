@@ -776,15 +776,18 @@ private fun MealModeContent(verse: QuranVerse) {
         if (verse.words.isNotEmpty()) {
             val translit = verse.words.joinToString(" ") { it.transliteration }.trim()
             if (translit.isNotBlank()) {
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     text = translit,
-                    modifier = Modifier.fillMaxWidth(),
-                    style = MaterialTheme.typography.bodySmall.copy(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Green700.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium.copy(
                         textAlign = TextAlign.End,
-                        lineHeight = 18.sp
+                        lineHeight = 22.sp
                     ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
                     fontStyle = FontStyle.Italic
                 )
             }

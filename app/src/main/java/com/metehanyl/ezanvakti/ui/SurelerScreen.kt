@@ -63,7 +63,8 @@ data class Surah(
     val nameAr: String,
     val verseCount: Int,
     val arabicText: String,
-    val turkishMeaning: String   // Prof. Dr. Mehmet Okuyan meali
+    val transliteration: String,  // Arapça okunuş (her zaman görünür, internet gerekmez)
+    val turkishMeaning: String    // Prof. Dr. Mehmet Okuyan meali
 )
 
 // ---------------------------------------------------------------------------
@@ -79,6 +80,8 @@ val NAMAZ_SURELERI: List<Surah> = listOf(
         verseCount = 7,
         arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
 الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ ﴿١﴾ الرَّحْمَٰنِ الرَّحِيمِ ﴿٢﴾ مَالِكِ يَوْمِ الدِّينِ ﴿٣﴾ إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ ﴿٤﴾ اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ ﴿٥﴾ صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ ﴿٦﴾""",
+        transliteration = """Bismillahirrahmanirrahim.
+Elhamdü lillahi rabbil alemin. Errahmanirrahim. Maliki yevmiddin. İyyake na'büdü ve iyyake nesteın. İhdinessıratelmüstekim. Sıratelleziyne en'amte aleyhim, gayril mağdubi aleyhim ve leddallîn.""",
         turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
 1. Hamd, âlemlerin Rabbi Allah'a aittir.
 2. O Rahman'dır, Rahim'dir.
@@ -95,6 +98,8 @@ val NAMAZ_SURELERI: List<Surah> = listOf(
         verseCount = 3,
         arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
 وَالْعَصْرِ ﴿١﴾ إِنَّ الْإِنسَانَ لَفِي خُسْرٍ ﴿٢﴾ إِلَّا الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ وَتَوَاصَوْا بِالْحَقِّ وَتَوَاصَوْا بِالصَّبْرِ ﴿٣﴾""",
+        transliteration = """Bismillahirrahmanirrahim.
+Vel asri. İnnel insane lefiy hüsrin. İllellezine amenu veamilüssalihati ve tevasav bilhakki ve tevasav bissabr.""",
         turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
 1. Asra/zamana andolsun,
 2. Şüphesiz insan gerçekten hüsran içindedir.
@@ -108,6 +113,8 @@ val NAMAZ_SURELERI: List<Surah> = listOf(
         verseCount = 5,
         arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
 أَلَمْ تَرَ كَيْفَ فَعَلَ رَبُّكَ بِأَصْحَابِ الْفِيلِ ﴿١﴾ أَلَمْ يَجْعَلْ كَيْدَهُمْ فِي تَضْلِيلٍ ﴿٢﴾ وَأَرْسَلَ عَلَيْهِمْ طَيْرًا أَبَابِيلَ ﴿٣﴾ تَرْمِيهِم بِحِجَارَةٍ مِّن سِجِّيلٍ ﴿٤﴾ فَجَعَلَهُمْ كَعَصْفٍ مَّأْكُولٍ ﴿٥﴾""",
+        transliteration = """Bismillahirrahmanirrahim.
+Elem tera keyfe feale rabbüke bi ashabil fil. Elem yec'al keydehüm fi tadlil. Ve ersele aleyhim tayran ebebile. Termihim bihicaratin min siccil. Fece'alehüm ke'asfin me'kul.""",
         turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
 1. Rabbin, fil sahiplerine ne yaptı; görmedin mi?
 2. Onların düzenlerini/tuzaklarını boşa çıkarmadı mı?
@@ -123,6 +130,8 @@ val NAMAZ_SURELERI: List<Surah> = listOf(
         verseCount = 4,
         arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
 لِإِيلَافِ قُرَيْشٍ ﴿١﴾ إِيلَافِهِمْ رِحْلَةَ الشِّتَاءِ وَالصَّيْفِ ﴿٢﴾ فَلْيَعْبُدُوا رَبَّ هَٰذَا الْبَيْتِ ﴿٣﴾ الَّذِي أَطْعَمَهُم مِّن جُوعٍ وَآمَنَهُم مِّنْ خَوْفٍ ﴿٤﴾""",
+        transliteration = """Bismillahirrahmanirrahim.
+Li'ilafi Kureyşin. İylafihim rihletesşita'i vessayfi. Felyabudu rabbe hazelbeyti. Ellezi et'amehüm min cu'in ve amenehüm min havf.""",
         turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
 1. Kureyş'in yolculuklarına/ticaretlerine alıştırıldığı için,
 2. Onların kış ve yaz yolculuklarına alıştırıldıkları için.
@@ -137,6 +146,8 @@ val NAMAZ_SURELERI: List<Surah> = listOf(
         verseCount = 7,
         arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
 أَرَأَيْتَ الَّذِي يُكَذِّبُ بِالدِّينِ ﴿١﴾ فَذَٰلِكَ الَّذِي يَدُعُّ الْيَتِيمَ ﴿٢﴾ وَلَا يَحُضُّ عَلَىٰ طَعَامِ الْمِسْكِينِ ﴿٣﴾ فَوَيْلٌ لِّلْمُصَلِّينَ ﴿٤﴾ الَّذِينَ هُمْ عَن صَلَاتِهِمْ سَاهُونَ ﴿٥﴾ الَّذِينَ هُمْ يُرَاءُونَ ﴿٦﴾ وَيَمْنَعُونَ الْمَاعُونَ ﴿٧﴾""",
+        transliteration = """Bismillahirrahmanirrahim.
+Eraeytellezi yükezzibü biddini. Fezalikellezi yedüül yetime. Ve la yehuddu ala taamil miskini. Fevevylün lilmüsalline. Ellezine hüm an salatihim sahune. Ellezine hüm yüraune. Ve yemne'unel maune.""",
         turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
 1. Dini/hesap gününü yalanlayanı gördün mü?
 2. İşte o, yetimi şiddetle iter.
@@ -154,6 +165,8 @@ val NAMAZ_SURELERI: List<Surah> = listOf(
         verseCount = 3,
         arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
 إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ ﴿١﴾ فَصَلِّ لِرَبِّكَ وَانْحَرْ ﴿٢﴾ إِنَّ شَانِئَكَ هُوَ الْأَبْتَرُ ﴿٣﴾""",
+        transliteration = """Bismillahirrahmanirrahim.
+İnna a'taynakel kevser. Fasalli lirabbike venhar. İnne şanie'ke huvel ebter.""",
         turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
 1. Şüphesiz biz sana Kevser'i verdik.
 2. O hâlde Rabbin için namaz kıl ve kurban kes.
@@ -167,6 +180,8 @@ val NAMAZ_SURELERI: List<Surah> = listOf(
         verseCount = 6,
         arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
 قُلْ يَا أَيُّهَا الْكَافِرُونَ ﴿١﴾ لَا أَعْبُدُ مَا تَعْبُدُونَ ﴿٢﴾ وَلَا أَنتُمْ عَابِدُونَ مَا أَعْبُدُ ﴿٣﴾ وَلَا أَنَا عَابِدٌ مَّا عَبَدتُّمْ ﴿٤﴾ وَلَا أَنتُمْ عَابِدُونَ مَا أَعْبُدُ ﴿٥﴾ لَكُمْ دِينُكُمْ وَلِيَ دِينِ ﴿٦﴾""",
+        transliteration = """Bismillahirrahmanirrahim.
+Kul ya eyyühel kafirune. La a'büdü ma ta'büdune. Ve la entüm abidune ma a'büdü. Ve la ene abidün ma abedtüm. Ve la entüm abidune ma a'büdü. Leküm dinüküm ve liye din.""",
         turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
 1. De ki: Ey kâfirler!
 2. Ben sizin taptıklarınıza tapmam.
@@ -183,6 +198,8 @@ val NAMAZ_SURELERI: List<Surah> = listOf(
         verseCount = 3,
         arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
 إِذَا جَاءَ نَصْرُ اللَّهِ وَالْفَتْحُ ﴿١﴾ وَرَأَيْتَ النَّاسَ يَدْخُلُونَ فِي دِينِ اللَّهِ أَفْوَاجًا ﴿٢﴾ فَسَبِّحْ بِحَمْدِ رَبِّكَ وَاسْتَغْفِرْهُ إِنَّهُ كَانَ تَوَّابًا ﴿٣﴾""",
+        transliteration = """Bismillahirrahmanirrahim.
+İza cae nasrullahi vel fethu. Ve raeytennase yedhulune fi dinillahi efvaca. Fesabbih bihamdi rabbike vestağfirhu. İnnehu kane tevvaba.""",
         turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
 1. Allah'ın yardımı ve fetih geldiğinde,
 2. İnsanların Allah'ın dinine akın akın girdiğini gördüğünde,
@@ -196,6 +213,8 @@ val NAMAZ_SURELERI: List<Surah> = listOf(
         verseCount = 5,
         arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
 تَبَّتْ يَدَا أَبِي لَهَبٍ وَتَبَّ ﴿١﴾ مَا أَغْنَىٰ عَنْهُ مَالُهُ وَمَا كَسَبَ ﴿٢﴾ سَيَصْلَىٰ نَارًا ذَاتَ لَهَبٍ ﴿٣﴾ وَامْرَأَتُهُ حَمَّالَةَ الْحَطَبِ ﴿٤﴾ فِي جِيدِهَا حَبْلٌ مِّن مَّسَدٍ ﴿٥﴾""",
+        transliteration = """Bismillahirrahmanirrahim.
+Tebbet yeda ebi lehebin ve tebb. Ma ağna anhü malühu ve ma kesebe. Seyasla naren zate leheb. Vemraetühu hammaletelhutab. Fi ciydiha hablün min mesed.""",
         turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
 1. Ebu Leheb'in iki eli kurusun! Zaten kurudu.
 2. Malı ve kazandıkları ona fayda vermedi.
@@ -211,6 +230,8 @@ val NAMAZ_SURELERI: List<Surah> = listOf(
         verseCount = 4,
         arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
 قُلْ هُوَ اللَّهُ أَحَدٌ ﴿١﴾ اللَّهُ الصَّمَدُ ﴿٢﴾ لَمْ يَلِدْ وَلَمْ يُولَدْ ﴿٣﴾ وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ ﴿٤﴾""",
+        transliteration = """Bismillahirrahmanirrahim.
+Kul hüvallahü ehad. Allahüssamed. Lem yelid ve lem yüled. Ve lem yekün lehü küfüven ehad.""",
         turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
 1. De ki: O, Allah Ehad'dır (tektir, eşsizdir).
 2. Allah Samed'dir; her şey O'na muhtaçtır, O hiçbir şeye muhtaç değildir.
@@ -225,6 +246,8 @@ val NAMAZ_SURELERI: List<Surah> = listOf(
         verseCount = 5,
         arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
 قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ ﴿١﴾ مِن شَرِّ مَا خَلَقَ ﴿٢﴾ وَمِن شَرِّ غَاسِقٍ إِذَا وَقَبَ ﴿٣﴾ وَمِن شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ ﴿٤﴾ وَمِن شَرِّ حَاسِدٍ إِذَا حَسَدَ ﴿٥﴾""",
+        transliteration = """Bismillahirrahmanirrahim.
+Kul euzü birabbil felaki. Min şerri ma halaka. Ve min şerri gasikin iza vekabe. Ve min şerrin neffasati fil ukadi. Ve min şerri hasidin iza hased.""",
         turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
 1. De ki: Sabahın Rabbine sığınırım.
 2. Yarattığı şeylerin şerrinden,
@@ -240,6 +263,8 @@ val NAMAZ_SURELERI: List<Surah> = listOf(
         verseCount = 6,
         arabicText = """بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
 قُلْ أَعُوذُ بِرَبِّ النَّاسِ ﴿١﴾ مَلِكِ النَّاسِ ﴿٢﴾ إِلَٰهِ النَّاسِ ﴿٣﴾ مِن شَرِّ الْوَسْوَاسِ الْخَنَّاسِ ﴿٤﴾ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ ﴿٥﴾ مِنَ الْجِنَّةِ وَالنَّاسِ ﴿٦﴾""",
+        transliteration = """Bismillahirrahmanirrahim.
+Kul euzü birabbin nasi. Melihin nasi. İlahin nasi. Min şerril vesvasisil hannasi. Ellezi yüvesvisu fi sudürin nasi. Minel cinneti ven nasi.""",
         turkishMeaning = """Rahman ve Rahim olan Allah'ın adıyla.
 1. De ki: İnsanların Rabbine sığınırım.
 2. İnsanların melikine/hükümdarına.
@@ -303,17 +328,13 @@ private fun SurelerHeader() {
 private fun SurahCard(surah: Surah) {
     var expanded by rememberSaveable(surah.number) { mutableStateOf(false) }
     var viewMode by rememberSaveable(surah.number) { mutableStateOf(MealViewMode.MEAL) }
-    // null = henüz yüklenmedi, emptyMap = yükleme başarısız/boş, dolu map = hazır
+    // null = henüz yüklenmedi, emptyMap = yükleme başarısız/boş, dolu map = hazır (Kelime Kelime için)
     var wordData by remember { mutableStateOf<Map<Int, List<QuranWord>>?>(null) }
 
-    // Kart açıldığında kelime verisini arka planda getir (bir kez)
-    LaunchedEffect(expanded) {
-        if (expanded && wordData == null) {
-            wordData = try {
-                fetchWordData(surah.number)
-            } catch (_: Exception) {
-                emptyMap()
-            }
+    // Kelime Kelime moduna geçilince veri yükle
+    LaunchedEffect(expanded, viewMode) {
+        if (expanded && viewMode == MealViewMode.KELIME_KELIME && wordData == null) {
+            wordData = try { fetchWordData(surah.number) } catch (_: Exception) { emptyMap() }
         }
     }
 
@@ -332,43 +353,21 @@ private fun SurahCard(surah: Surah) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Sure numarası rozeti
                 Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(Green700, CircleShape),
+                    modifier = Modifier.size(40.dp).background(Green700, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = surah.number.toString(),
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text(surah.number.toString(), color = Color.White,
+                        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                 }
-
-                // Türkçe ad + ayet sayısı
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = surah.nameTr,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "${surah.verseCount} ayet",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text(surah.nameTr, style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold)
+                    Text("${surah.verseCount} ayet", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-
-                // Arapça adı
-                Text(
-                    text = surah.nameAr,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Green700
-                )
-
+                Text(surah.nameAr, style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold, color = Green700)
                 Icon(
                     imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                     contentDescription = null,
@@ -377,16 +376,9 @@ private fun SurahCard(surah: Surah) {
             }
 
             // Genişletilmiş içerik
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandVertically(),
-                exit = shrinkVertically()
-            ) {
+            AnimatedVisibility(visible = expanded, enter = expandVertically(), exit = shrinkVertically()) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 16.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp)
                 ) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(modifier = Modifier.height(8.dp))
@@ -398,25 +390,21 @@ private fun SurahCard(surah: Surah) {
                             onClick = { viewMode = MealViewMode.MEAL },
                             label = { Text("Meâl", style = MaterialTheme.typography.labelMedium) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Green700,
-                                selectedLabelColor = Color.White
-                            )
+                                selectedContainerColor = Green700, selectedLabelColor = Color.White)
                         )
                         FilterChip(
                             selected = viewMode == MealViewMode.KELIME_KELIME,
                             onClick = { viewMode = MealViewMode.KELIME_KELIME },
                             label = { Text("Kelime Kelime", style = MaterialTheme.typography.labelMedium) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Green700,
-                                selectedLabelColor = Color.White
-                            )
+                                selectedContainerColor = Green700, selectedLabelColor = Color.White)
                         )
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
                     when (viewMode) {
-                        MealViewMode.MEAL -> SurahMealContent(surah, wordData)
+                        MealViewMode.MEAL -> SurahMealContent(surah)
                         MealViewMode.KELIME_KELIME -> SurahKelimeKelimeContent(surah, wordData)
                     }
                 }
@@ -426,11 +414,11 @@ private fun SurahCard(surah: Surah) {
 }
 
 // ---------------------------------------------------------------------------
-// Meâl modu: Arapça metin → okunuş → Türkçe anlam
+// Meâl modu: Arapça → Okunuş → Türkçe anlam
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun SurahMealContent(surah: Surah, wordData: Map<Int, List<QuranWord>>?) {
+private fun SurahMealContent(surah: Surah) {
     // Arapça metin (sağdan sola)
     Text(
         text = surah.arabicText,
@@ -443,26 +431,24 @@ private fun SurahMealContent(surah: Surah, wordData: Map<Int, List<QuranWord>>?)
         modifier = Modifier.fillMaxWidth()
     )
 
-    // Transliterasyon — tüm ayetlerin kelimelerini birleştir
-    if (!wordData.isNullOrEmpty()) {
-        val translit = wordData.entries
-            .sortedBy { it.key }
-            .flatMap { it.value }
-            .joinToString(" ") { it.transliteration }
-            .trim()
-        if (translit.isNotBlank()) {
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = translit,
-                modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.bodySmall.copy(
-                    textAlign = TextAlign.End,
-                    lineHeight = 18.sp
-                ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontStyle = FontStyle.Italic
-            )
-        }
+    // Okunuş (her zaman görünür — sabit metin, internet gerekmez)
+    if (surah.transliteration.isNotBlank()) {
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = surah.transliteration,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = Green700.copy(alpha = 0.06f),
+                    shape = RoundedCornerShape(8.dp)
+                )
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.bodyMedium.copy(
+                lineHeight = 22.sp
+            ),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+            fontStyle = FontStyle.Italic
+        )
     }
 
     Spacer(modifier = Modifier.height(14.dp))
@@ -470,30 +456,22 @@ private fun SurahMealContent(surah: Surah, wordData: Map<Int, List<QuranWord>>?)
     Spacer(modifier = Modifier.height(12.dp))
 
     // Türkçe anlam
-    Text(
-        text = surah.turkishMeaning,
-        style = MaterialTheme.typography.bodyMedium,
-        lineHeight = 22.sp
-    )
+    Text(text = surah.turkishMeaning, style = MaterialTheme.typography.bodyMedium, lineHeight = 22.sp)
 }
 
 // ---------------------------------------------------------------------------
-// Kelime Kelime modu: her kelimenin altında okunuş ve Türkçe anlam
+// Kelime Kelime modu
 // ---------------------------------------------------------------------------
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SurahKelimeKelimeContent(surah: Surah, wordData: Map<Int, List<QuranWord>>?) {
     if (wordData.isNullOrEmpty()) {
-        // Veri henüz yüklenmedi veya boş — normal içeriği göster
-        SurahMealContent(surah, wordData)
+        // Veri yüklenene kadar / yüklenemezse normal mod göster
+        SurahMealContent(surah)
         return
     }
-
-    // Tüm ayetlerin kelimeleri, ayet sırasına göre
     val allWords = wordData.entries.sortedBy { it.key }.flatMap { it.value }
-
-    // RTL düzende kelime sütunları
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -503,18 +481,9 @@ private fun SurahKelimeKelimeContent(surah: Surah, wordData: Map<Int, List<Quran
             allWords.forEach { word -> WordColumn(word) }
         }
     }
-
     Spacer(Modifier.height(6.dp))
-    HorizontalDivider(
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-        modifier = Modifier.padding(vertical = 4.dp)
-    )
-
-    // Referans için Türkçe meal
-    Text(
-        text = surah.turkishMeaning,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        lineHeight = 18.sp
-    )
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+        modifier = Modifier.padding(vertical = 4.dp))
+    Text(text = surah.turkishMeaning, style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 18.sp)
 }
