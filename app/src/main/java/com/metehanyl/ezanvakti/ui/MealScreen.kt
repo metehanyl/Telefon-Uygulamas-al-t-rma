@@ -792,7 +792,7 @@ private fun VerseRow(
 
         when (viewMode) {
             MealViewMode.MEAL -> MealModeContent(verse, surahNumber)
-            MealViewMode.KELIME_KELIME -> KelimeKelimeModeContent(verse)
+            MealViewMode.KELIME_KELIME -> KelimeKelimeModeContent(verse, surahNumber)
         }
     }
 
@@ -853,10 +853,10 @@ private fun MealModeContent(verse: QuranVerse, surahNumber: Int) {
 /** KELIME KELIME modu: her Arapça kelimenin altında okunuşu ve Türkçe anlamı */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun KelimeKelimeModeContent(verse: QuranVerse) {
+private fun KelimeKelimeModeContent(verse: QuranVerse, surahNumber: Int) {
     if (verse.words.isEmpty()) {
         // Kelime verisi yoksa normal moda düş
-        MealModeContent(verse)
+        MealModeContent(verse, surahNumber)
         return
     }
     // RTL düzende kelime sütunları — her kelime: Arapça / okunuş / anlam
