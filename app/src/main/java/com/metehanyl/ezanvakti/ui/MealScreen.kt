@@ -943,8 +943,8 @@ private fun MealModeContent(
 @Composable
 private fun KelimeKelimeModeContent(verse: QuranVerse, surahNumber: Int) {
     if (verse.words.isEmpty()) {
-        // Kelime verisi yoksa normal moda düş
-        MealModeContent(verse, surahNumber)
+        // Kelime verisi yoksa normal moda düş — Arapça varsayılan açık
+        MealModeContent(verse, surahNumber, arabicExpanded = true, onToggleArabic = {})
         return
     }
     // RTL düzende kelime sütunları — her kelime: Arapça / okunuş / anlam
