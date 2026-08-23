@@ -354,10 +354,11 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
         do {
             val apiUrl = "https://api.quran.com/api/v4/verses/by_chapter/$number" +
                 "?translations=$translationId" +
+                "&transliterations=1" +
                 "&word_fields=transliteration,translation" +
                 "&language=tr" +
                 "&per_page=50&page=$page" +
-                "&fields=text_uthmani,verse_number,transliteration"
+                "&fields=text_uthmani,verse_number"
             val conn = (URL(apiUrl).openConnection() as HttpURLConnection).also {
                 it.connectTimeout = 12_000
                 it.readTimeout = 20_000
@@ -370,7 +371,11 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
             for (i in 0 until verses.length()) {
                 val v = verses.getJSONObject(i)
                 val arabicText = v.optString("text_uthmani", "")
-                val translitText = v.optJSONObject("transliteration")?.optString("text", "") ?: ""
+                // transliterations dizisinin ilk elemanından verse düzeyinde okunuş
+                val translitArr = v.optJSONArray("transliterations")
+                val translitText = if (translitArr != null && translitArr.length() > 0)
+                    translitArr.getJSONObject(0).optString("text", "")
+                else ""
                 val tArr = v.getJSONArray("translations")
                 val turkishText = if (tArr.length() > 0) stripHtml(tArr.getJSONObject(0).getString("text")) else ""
                 // Kelime verisi
@@ -827,10 +832,9 @@ private fun MealModeContent(verse: QuranVerse, surahNumber: Int) {
         )
     }
 
-    // 2. Okunuş — önce ayet düzeyinden, yoksa kelime verisinden derle
-    val translit = if (verse.transliteration.isNotBlank()) {
-        verse.transliteration
-    } else {
+    // 2. Okunuş — transliterations=1 ile gelen ayet düzeyinde okunuş;
+    //    yedek olarak kelime düzeyinden derleme
+    val translit = verse.transliteration.ifBlank {
         val words = verse.words.ifEmpty {
             WordDataCache.cache[surahNumber]?.get(verse.numberInSurah) ?: emptyList()
         }
