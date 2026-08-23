@@ -764,38 +764,42 @@ private fun VerseRow(
 ) {
     val bgColor = if (isBookmarked) Green700.copy(alpha = 0.08f) else Color.Transparent
 
-    Column(
+    // SurahVerseBlock ile aynı Row düzeni: [rozet] [içerik] [işaret]
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(bgColor, RoundedCornerShape(10.dp))
-            .padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top
     ) {
-        // Numara + işaret
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier.size(26.dp)
-                    .background(if (isBookmarked) Green700 else Green700.copy(alpha = 0.12f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(verse.numberInSurah.toString(), style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold, color = if (isBookmarked) Color.White else Green700)
-            }
-            Spacer(Modifier.weight(1f))
-            IconButton(onClick = onToggleBookmark, modifier = Modifier.size(32.dp)) {
-                Icon(
-                    imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                    contentDescription = if (isBookmarked) "İşareti kaldır" else "İşaret koy",
-                    tint = if (isBookmarked) Green700 else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    modifier = Modifier.size(18.dp)
-                )
+        // Ayet numarası rozeti
+        Box(
+            modifier = Modifier
+                .size(26.dp)
+                .background(if (isBookmarked) Green700 else Green700.copy(alpha = 0.12f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(verse.numberInSurah.toString(), style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold, color = if (isBookmarked) Color.White else Green700)
+        }
+
+        // İçerik
+        Column(modifier = Modifier.weight(1f)) {
+            when (viewMode) {
+                MealViewMode.MEAL -> MealModeContent(verse, surahNumber)
+                MealViewMode.KELIME_KELIME -> KelimeKelimeModeContent(verse, surahNumber)
             }
         }
 
-        Spacer(Modifier.height(6.dp))
-
-        when (viewMode) {
-            MealViewMode.MEAL -> MealModeContent(verse, surahNumber)
-            MealViewMode.KELIME_KELIME -> KelimeKelimeModeContent(verse, surahNumber)
+        // Yer işareti butonu
+        IconButton(onClick = onToggleBookmark, modifier = Modifier.size(32.dp)) {
+            Icon(
+                imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                contentDescription = if (isBookmarked) "İşareti kaldır" else "İşaret koy",
+                tint = if (isBookmarked) Green700 else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 
@@ -805,10 +809,10 @@ private fun VerseRow(
     }
 }
 
-/** MEAL modu: Arapça (harekeli) → okunuş → Türkçe meal */
+/** MEAL modu — SurahVerseBlock ile aynı format: Arapça → okunuş → Türkçe meal */
 @Composable
 private fun MealModeContent(verse: QuranVerse, surahNumber: Int) {
-    // 1. Arapça metin — text_uthmani harekeli (esre, ötre, üstün dahil)
+    // 1. Arapça metin (harekeli, sağdan sola)
     if (verse.arabic.isNotBlank()) {
         Text(
             text = verse.arabic,
@@ -816,42 +820,45 @@ private fun MealModeContent(verse: QuranVerse, surahNumber: Int) {
             style = MaterialTheme.typography.bodyLarge.copy(
                 textDirection = TextDirection.Rtl,
                 textAlign = TextAlign.End,
-                fontSize = 22.sp,
-                lineHeight = 40.sp
+                fontSize = 19.sp,
+                lineHeight = 34.sp
             ),
-            color = Green700
+            color = Green700.copy(alpha = 0.9f)
         )
-        // 2. Okunuş (transliterasyon) — önce ayet düzeyinden, yoksa kelime verisinden derle
-        val translit = if (verse.transliteration.isNotBlank()) {
-            verse.transliteration
-        } else {
-            val words = verse.words.ifEmpty {
-                WordDataCache.cache[surahNumber]?.get(verse.numberInSurah) ?: emptyList()
-            }
-            words.joinToString(" ") { it.transliteration }.trim()
-        }
-        if (translit.isNotBlank()) {
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = translit,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Green700.copy(alpha = 0.07f), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 10.dp, vertical = 7.dp),
-                style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
-                color = Green700.copy(alpha = 0.85f),
-                fontStyle = FontStyle.Italic
-            )
-        }
-        Spacer(Modifier.height(8.dp))
     }
+
+    // 2. Okunuş — önce ayet düzeyinden, yoksa kelime verisinden derle
+    val translit = if (verse.transliteration.isNotBlank()) {
+        verse.transliteration
+    } else {
+        val words = verse.words.ifEmpty {
+            WordDataCache.cache[surahNumber]?.get(verse.numberInSurah) ?: emptyList()
+        }
+        words.joinToString(" ") { it.transliteration }.trim()
+    }
+    if (translit.isNotBlank()) {
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = translit,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Green700.copy(alpha = 0.07f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 10.dp, vertical = 7.dp),
+            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+            fontStyle = FontStyle.Italic
+        )
+    }
+
     // 3. Türkçe meal
-    Text(
-        text = verse.turkish,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurface,
-        lineHeight = 22.sp
-    )
+    if (verse.turkish.isNotBlank()) {
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = verse.turkish,
+            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
 }
 
 /** KELIME KELIME modu: her Arapça kelimenin altında okunuşu ve Türkçe anlamı */
