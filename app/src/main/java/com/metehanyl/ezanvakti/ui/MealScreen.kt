@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -799,6 +801,8 @@ private fun VerseRow(
     onToggleBookmark: () -> Unit
 ) {
     val bgColor = if (isBookmarked) Green700.copy(alpha = 0.08f) else Color.Transparent
+    // Meâl modunda Arapça + okunuş varsayılan olarak gizli; kullanıcı açar
+    var arabicExpanded by rememberSaveable(surahNumber, verse.numberInSurah) { mutableStateOf(false) }
 
     // SurahVerseBlock ile aynı Row düzeni: [rozet] [içerik] [işaret]
     Row(
@@ -823,7 +827,12 @@ private fun VerseRow(
         // İçerik
         Column(modifier = Modifier.weight(1f)) {
             when (viewMode) {
-                MealViewMode.MEAL -> MealModeContent(verse, surahNumber)
+                MealViewMode.MEAL -> MealModeContent(
+                    verse = verse,
+                    surahNumber = surahNumber,
+                    arabicExpanded = arabicExpanded,
+                    onToggleArabic = { arabicExpanded = !arabicExpanded }
+                )
                 MealViewMode.KELIME_KELIME -> KelimeKelimeModeContent(verse, surahNumber)
             }
         }
@@ -845,49 +854,82 @@ private fun VerseRow(
     }
 }
 
-/** MEAL modu — SurahVerseBlock ile aynı format: Arapça → okunuş → Türkçe meal */
+/**
+ * MEAL modu — varsayılanda yalnızca Türkçe meal görünür.
+ * Üstteki satıra dokunarak Arapça metin + okunuş açılır/kapanır.
+ */
 @Composable
-private fun MealModeContent(verse: QuranVerse, surahNumber: Int) {
-    // 1. Arapça metin (harekeli, sağdan sola)
-    if (verse.arabic.isNotBlank()) {
-        Text(
-            text = verse.arabic,
-            modifier = Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.bodyLarge.copy(
-                textDirection = TextDirection.Rtl,
-                textAlign = TextAlign.End,
-                fontSize = 19.sp,
-                lineHeight = 34.sp
-            ),
-            color = Green700.copy(alpha = 0.9f)
-        )
-    }
-
-    // 2. Okunuş — transliterations=1 ile gelen ayet düzeyinde okunuş;
-    //    yedek olarak kelime düzeyinden derleme
+private fun MealModeContent(
+    verse: QuranVerse,
+    surahNumber: Int,
+    arabicExpanded: Boolean,
+    onToggleArabic: () -> Unit
+) {
+    // Arapça / okunuş aç-kapat satırı (her zaman görünür)
+    val hasArabic = verse.arabic.isNotBlank()
     val translit = verse.transliteration.ifBlank {
         val words = verse.words.ifEmpty {
             WordDataCache.cache[surahNumber]?.get(verse.numberInSurah) ?: emptyList()
         }
         words.joinToString(" ") { it.transliteration }.trim()
     }
-    if (translit.isNotBlank()) {
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text = translit,
+    if (hasArabic || translit.isNotBlank()) {
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Green700.copy(alpha = 0.07f), RoundedCornerShape(8.dp))
-                .padding(horizontal = 10.dp, vertical = 7.dp),
-            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
-            fontStyle = FontStyle.Italic
-        )
+                .clickable(onClick = onToggleArabic)
+                .padding(vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = if (arabicExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = if (arabicExpanded) "Gizle" else "Arapça ve okunuşu göster",
+                tint = Green700.copy(alpha = 0.65f),
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = if (arabicExpanded) "Gizle" else "Arapça · Okunuş",
+                style = MaterialTheme.typography.labelSmall,
+                color = Green700.copy(alpha = 0.65f)
+            )
+        }
     }
 
-    // 3. Türkçe meal
-    if (verse.turkish.isNotBlank()) {
+    // 1. Arapça metin + 2. Okunuş — yalnızca açıkken görünür
+    if (arabicExpanded) {
+        if (hasArabic) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = verse.arabic,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    textDirection = TextDirection.Rtl,
+                    textAlign = TextAlign.End,
+                    fontSize = 19.sp,
+                    lineHeight = 34.sp
+                ),
+                color = Green700.copy(alpha = 0.9f)
+            )
+        }
+        if (translit.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = translit,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Green700.copy(alpha = 0.07f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                fontStyle = FontStyle.Italic
+            )
+        }
         Spacer(Modifier.height(6.dp))
+    }
+
+    // 3. Türkçe meal — her zaman görünür
+    if (verse.turkish.isNotBlank()) {
         Text(
             text = verse.turkish,
             style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
