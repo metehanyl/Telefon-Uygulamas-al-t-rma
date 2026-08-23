@@ -130,7 +130,6 @@ suspend fun fetchWordData(surahNumber: Int): Map<Int, List<QuranWord>> =
         do {
             val url = "https://api.quran.com/api/v4/verses/by_chapter/$surahNumber" +
                 "?word_fields=transliteration,translation" +
-                "&language=tr" +
                 "&per_page=50&page=$page" +
                 "&fields=verse_number"
             val conn = (URL(url).openConnection() as HttpURLConnection).also {
@@ -354,6 +353,7 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
         do {
             val apiUrl = "https://api.quran.com/api/v4/verses/by_chapter/$number" +
                 "?translations=$translationId" +
+                "&transliterations=1" +
                 "&word_fields=transliteration,translation" +
                 "&per_page=50&page=$page" +
                 "&fields=text_uthmani,verse_number"
@@ -369,11 +369,15 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
             for (i in 0 until verses.length()) {
                 val v = verses.getJSONObject(i)
                 val arabicText = v.optString("text_uthmani", "")
-                // transliterations dizisinin ilk elemanından verse düzeyinde okunuş
-                val translitArr = v.optJSONArray("transliterations")
-                val translitText = if (translitArr != null && translitArr.length() > 0)
-                    translitArr.getJSONObject(0).optString("text", "")
-                else ""
+                // Ayet düzeyinde okunuş: önce dizi formatı (transliterations=[…]),
+                // yoksa obje formatı (transliteration={text:…}), ikisi de yoksa boş
+                val translitText = run {
+                    val arr = v.optJSONArray("transliterations")
+                    if (arr != null && arr.length() > 0)
+                        arr.getJSONObject(0).optString("text", "")
+                    else
+                        v.optJSONObject("transliteration")?.optString("text", "") ?: ""
+                }
                 val tArr = v.getJSONArray("translations")
                 val turkishText = if (tArr.length() > 0) stripHtml(tArr.getJSONObject(0).getString("text")) else ""
                 // Kelime verisi
