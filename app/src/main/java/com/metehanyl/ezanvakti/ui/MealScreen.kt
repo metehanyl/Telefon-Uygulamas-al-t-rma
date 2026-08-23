@@ -354,9 +354,7 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
         do {
             val apiUrl = "https://api.quran.com/api/v4/verses/by_chapter/$number" +
                 "?translations=$translationId" +
-                "&transliterations=1" +
                 "&word_fields=transliteration,translation" +
-                "&language=tr" +
                 "&per_page=50&page=$page" +
                 "&fields=text_uthmani,verse_number"
             val conn = (URL(apiUrl).openConnection() as HttpURLConnection).also {
