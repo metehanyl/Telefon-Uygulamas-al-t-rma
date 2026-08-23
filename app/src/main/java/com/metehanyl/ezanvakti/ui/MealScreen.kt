@@ -117,6 +117,34 @@ internal object WordDataCache {
 }
 
 /**
+ * alquran.cloud API'sinden ayet düzeyinde İngilizce transliterasyon getirir.
+ * Dönen map: verseNumber → transliterasyon metni
+ */
+private suspend fun fetchTransliterations(surahNumber: Int): Map<Int, String> =
+    withContext(Dispatchers.IO) {
+        try {
+            val url = "https://api.alquran.cloud/v1/surah/$surahNumber/en.transliteration"
+            val conn = (URL(url).openConnection() as HttpURLConnection).also {
+                it.connectTimeout = 10_000
+                it.readTimeout = 15_000
+                it.setRequestProperty("Accept", "application/json")
+            }
+            if (conn.responseCode != HttpURLConnection.HTTP_OK) return@withContext emptyMap()
+            val json = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8)).use { it.readText() }
+            val ayahs = JSONObject(json).optJSONObject("data")?.optJSONArray("ayahs")
+                ?: return@withContext emptyMap()
+            val result = mutableMapOf<Int, String>()
+            for (i in 0 until ayahs.length()) {
+                val a = ayahs.getJSONObject(i)
+                val num = a.optInt("numberInSurah", -1)
+                val text = a.optString("text", "")
+                if (num > 0 && text.isNotBlank()) result[num] = text
+            }
+            result
+        } catch (_: Exception) { emptyMap() }
+    }
+
+/**
  * quran.com API v4'ten belirtilen sure için kelime düzeyinde
  * transliterasyon ve Türkçe anlam verisini getirir.
  * Sonuç WordDataCache'e kaydedilir; aynı sure tekrar istenmez.
@@ -348,12 +376,13 @@ private suspend fun resolveOkuyanId(): Int =
 private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahContent =
     withContext(Dispatchers.IO) {
         val translationId = resolveOkuyanId()
+        // alquran.cloud'dan ayet düzeyinde okunuş verisini önceden çek
+        val transliterationMap = fetchTransliterations(number)
         val allVerses = mutableListOf<QuranVerse>()
         var page = 1
         do {
             val apiUrl = "https://api.quran.com/api/v4/verses/by_chapter/$number" +
                 "?translations=$translationId" +
-                "&transliterations=1" +
                 "&word_fields=transliteration,translation" +
                 "&per_page=50&page=$page" +
                 "&fields=text_uthmani,verse_number"
@@ -369,9 +398,10 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
             for (i in 0 until verses.length()) {
                 val v = verses.getJSONObject(i)
                 val arabicText = v.optString("text_uthmani", "")
-                // Ayet düzeyinde okunuş: önce dizi formatı (transliterations=[…]),
-                // yoksa obje formatı (transliteration={text:…}), ikisi de yoksa boş
-                val translitText = run {
+                // Ayet düzeyinde okunuş: alquran.cloud haritasından al;
+                // yoksa quran.com transliterations dizisi/objesi dene
+                val verseNum0 = v.optInt("verse_number", -1)
+                val translitText = transliterationMap[verseNum0] ?: run {
                     val arr = v.optJSONArray("transliterations")
                     if (arr != null && arr.length() > 0)
                         arr.getJSONObject(0).optString("text", "")
@@ -395,13 +425,12 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
                 }
                 // Kelime önbelleğini de güncelle (Sureler sekmesiyle paylaşım)
                 if (words.isNotEmpty()) {
-                    val verseNum = v.getInt("verse_number")
                     val cached = WordDataCache.cache.getOrPut(number) { mutableMapOf() }.toMutableMap()
-                    cached[verseNum] = words
+                    cached[verseNum0] = words
                     WordDataCache.cache[number] = cached
                 }
                 allVerses.add(QuranVerse(
-                    numberInSurah = v.getInt("verse_number"),
+                    numberInSurah = verseNum0,
                     arabic = arabicText,
                     turkish = turkishText,
                     words = words,
