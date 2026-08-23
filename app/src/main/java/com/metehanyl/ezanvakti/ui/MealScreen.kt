@@ -93,9 +93,10 @@ data class QuranWord(
 
 data class QuranVerse(
     val numberInSurah: Int,
-    val arabic: String,          // text_uthmani — tam Arapça ayet metni
-    val turkish: String,         // Mehmet Okuyan meali (ayet düzeyinde)
-    val words: List<QuranWord>   // Kelime kelime veri
+    val arabic: String,           // text_uthmani — tam Arapça ayet metni
+    val turkish: String,          // Mehmet Okuyan meali (ayet düzeyinde)
+    val words: List<QuranWord>,   // Kelime kelime veri
+    val transliteration: String = "" // Ayet düzeyinde Latin okunuş
 )
 
 data class SurahContent(
@@ -356,7 +357,7 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
                 "&word_fields=transliteration,translation" +
                 "&language=tr" +
                 "&per_page=50&page=$page" +
-                "&fields=text_uthmani,verse_number"
+                "&fields=text_uthmani,verse_number,transliteration"
             val conn = (URL(apiUrl).openConnection() as HttpURLConnection).also {
                 it.connectTimeout = 12_000
                 it.readTimeout = 20_000
@@ -369,6 +370,7 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
             for (i in 0 until verses.length()) {
                 val v = verses.getJSONObject(i)
                 val arabicText = v.optString("text_uthmani", "")
+                val translitText = v.optJSONObject("transliteration")?.optString("text", "") ?: ""
                 val tArr = v.getJSONArray("translations")
                 val turkishText = if (tArr.length() > 0) stripHtml(tArr.getJSONObject(0).getString("text")) else ""
                 // Kelime verisi
@@ -395,7 +397,8 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
                     numberInSurah = v.getInt("verse_number"),
                     arabic = arabicText,
                     turkish = turkishText,
-                    words = words
+                    words = words,
+                    transliteration = translitText
                 ))
             }
             val totalPages = root.optJSONObject("pagination")?.optInt("total_pages", 1) ?: 1
@@ -818,11 +821,15 @@ private fun MealModeContent(verse: QuranVerse, surahNumber: Int) {
             ),
             color = Green700
         )
-        // 2. Okunuş (transliterasyon) — kelime verisinden veya önbellekten
-        val words = verse.words.ifEmpty {
-            WordDataCache.cache[surahNumber]?.get(verse.numberInSurah) ?: emptyList()
+        // 2. Okunuş (transliterasyon) — önce ayet düzeyinden, yoksa kelime verisinden derle
+        val translit = if (verse.transliteration.isNotBlank()) {
+            verse.transliteration
+        } else {
+            val words = verse.words.ifEmpty {
+                WordDataCache.cache[surahNumber]?.get(verse.numberInSurah) ?: emptyList()
+            }
+            words.joinToString(" ") { it.transliteration }.trim()
         }
-        val translit = words.joinToString(" ") { it.transliteration }.trim()
         if (translit.isNotBlank()) {
             Spacer(Modifier.height(6.dp))
             Text(
