@@ -802,31 +802,23 @@ private fun VerseRow(
     }
 }
 
-/** MEAL modu: Türkçe meal + altında Arapça metin + okunuş */
+/** MEAL modu: Arapça (harekeli) → okunuş → Türkçe meal */
 @Composable
 private fun MealModeContent(verse: QuranVerse, surahNumber: Int) {
-    // Türkçe meal
-    Text(
-        text = verse.turkish,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurface,
-        lineHeight = 22.sp
-    )
+    // 1. Arapça metin — text_uthmani harekeli (esre, ötre, üstün dahil)
     if (verse.arabic.isNotBlank()) {
-        Spacer(Modifier.height(8.dp))
-        // Arapça metin
         Text(
             text = verse.arabic,
             modifier = Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.bodyMedium.copy(
+            style = MaterialTheme.typography.bodyLarge.copy(
                 textDirection = TextDirection.Rtl,
                 textAlign = TextAlign.End,
-                fontSize = 17.sp,
-                lineHeight = 30.sp
+                fontSize = 22.sp,
+                lineHeight = 40.sp
             ),
-            color = Green700.copy(alpha = 0.85f)
+            color = Green700
         )
-        // Arapça okunuş (transliterasyon) — verse.words veya önbellekten
+        // 2. Okunuş (transliterasyon) — kelime verisinden veya önbellekten
         val words = verse.words.ifEmpty {
             WordDataCache.cache[surahNumber]?.get(verse.numberInSurah) ?: emptyList()
         }
@@ -837,17 +829,22 @@ private fun MealModeContent(verse: QuranVerse, surahNumber: Int) {
                 text = translit,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Green700.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    textAlign = TextAlign.End,
-                    lineHeight = 22.sp
-                ),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                    .background(Green700.copy(alpha = 0.07f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
+                color = Green700.copy(alpha = 0.85f),
                 fontStyle = FontStyle.Italic
             )
         }
+        Spacer(Modifier.height(8.dp))
     }
+    // 3. Türkçe meal
+    Text(
+        text = verse.turkish,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+        lineHeight = 22.sp
+    )
 }
 
 /** KELIME KELIME modu: her Arapça kelimenin altında okunuşu ve Türkçe anlamı */
