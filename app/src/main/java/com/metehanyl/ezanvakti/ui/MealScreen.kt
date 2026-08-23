@@ -164,43 +164,135 @@ private suspend fun fetchTransliterations(surahNumber: Int): Map<Int, String> =
     }
 
 /**
- * quran.com arama API'sini kullanarak ayet arar.
- * Her iki mod (Ayet Ara + AI Ara) aynı endpoint'i kullanır.
+ * Günlük Türkçe → Kur'an terminolojisi eşlemesi.
+ * Kullanıcı "alkol" yazarsa arama "içki" ile yapılır, vb.
  */
-private suspend fun searchVerses(query: String, size: Int = 20): List<VerseSearchResult> =
+private val turkishTermExpansions = mapOf(
+    "alkol"       to "içki",
+    "içki"        to "içki sarhoş hamr",
+    "şarap"       to "şarap içki hamr",
+    "bira"        to "içki sarhoş",
+    "sigara"      to "zarar haram",
+    "kumar"       to "kumar",
+    "faiz"        to "riba faiz",
+    "namaz"       to "namaz salat",
+    "oruç"        to "oruç ramazan",
+    "zekât"       to "zekât infak sadaka",
+    "hac"         to "hac",
+    "hırsızlık"   to "hırsız",
+    "yalan"       to "yalan",
+    "zina"        to "zina fahiş",
+    "anne"        to "anne valide",
+    "baba"        to "baba",
+    "sabır"       to "sabır sabredin",
+    "şükür"       to "şükret hamd",
+    "ölüm"        to "ölüm vefat",
+    "cennet"      to "cennet",
+    "cehennem"    to "cehennem ateş",
+    "af"          to "af bağışla",
+    "tövbe"       to "tövbe bağışla",
+    "korku"       to "korku kaygı",
+    "umut"        to "umut rahmet",
+    "adalet"      to "adalet hak",
+    "yardım"      to "yardım",
+    "dua"         to "dua",
+)
+
+/** Sorguyu Kur'an terminolojisine genişletir (AI Ara modu). */
+private fun expandAiQuery(query: String): String {
+    val lower = query.lowercase()
+    for ((key, expansion) in turkishTermExpansions) {
+        if (lower.contains(key)) return expansion
+    }
+    return query
+}
+
+/**
+ * alQuran.cloud Türkçe Diyanet mealinde arama yapar (birincil).
+ * Sonuç 3'ten azsa quran.com API'si yedek olarak devreye girer.
+ * isAiMode=true ise sorgu önce Kur'an terminolojisine genişletilir.
+ */
+private suspend fun searchVerses(
+    query: String,
+    size: Int = 20,
+    isAiMode: Boolean = false
+): List<VerseSearchResult> =
     withContext(Dispatchers.IO) {
-        try {
-            val encoded = java.net.URLEncoder.encode(query, "UTF-8")
-            val url = "https://api.quran.com/api/v4/search?q=$encoded&size=$size&page=1&language=tr"
-            val conn = (URL(url).openConnection() as HttpURLConnection).also {
-                it.connectTimeout = 12_000
-                it.readTimeout = 20_000
-                it.setRequestProperty("Accept", "application/json")
-            }
-            if (conn.responseCode != HttpURLConnection.HTTP_OK) return@withContext emptyList()
-            val json = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8)).use { it.readText() }
-            val results = JSONObject(json)
-                .optJSONObject("search")
-                ?.optJSONArray("results")
-                ?: return@withContext emptyList()
-            val list = mutableListOf<VerseSearchResult>()
-            for (i in 0 until results.length()) {
-                val r = results.getJSONObject(i)
-                val key = r.optString("verse_key", "")
-                val parts = key.split(":")
-                if (parts.size != 2) continue
-                val surahNum = parts[0].toIntOrNull() ?: continue
-                val verseNum = parts[1].toIntOrNull() ?: continue
-                val surahMeta = ALL_SURAHS.getOrNull(surahNum - 1) ?: continue
-                val arabicText = r.optString("text", "")
-                val translationsArr = r.optJSONArray("translations")
-                val turkishText = if (translationsArr != null && translationsArr.length() > 0)
-                    stripHtml(translationsArr.getJSONObject(0).optString("text", ""))
-                else ""
-                list.add(VerseSearchResult(surahNum, verseNum, surahMeta.nameTr, arabicText, turkishText))
-            }
-            list
-        } catch (_: Exception) { emptyList() }
+        val results = mutableListOf<VerseSearchResult>()
+        val seen = mutableSetOf<String>()
+
+        val effectiveQuery = if (isAiMode) expandAiQuery(query) else query
+
+        // 1. alQuran.cloud — doğrudan Türkçe meal metninde ara
+        fun searchAlQuranCloud(term: String) {
+            try {
+                val encoded = java.net.URLEncoder.encode(term, "UTF-8")
+                val url = "https://api.alquran.cloud/v1/search/$encoded/all/tr.diyanet"
+                val conn = (URL(url).openConnection() as HttpURLConnection).also {
+                    it.connectTimeout = 12_000
+                    it.readTimeout = 20_000
+                    it.setRequestProperty("Accept", "application/json")
+                }
+                if (conn.responseCode != HttpURLConnection.HTTP_OK) return
+                val json = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8)).use { it.readText() }
+                val matches = JSONObject(json).optJSONObject("data")?.optJSONArray("matches") ?: return
+                for (i in 0 until minOf(matches.length(), size)) {
+                    val m = matches.getJSONObject(i)
+                    val sNum = m.optJSONObject("surah")?.optInt("number", -1) ?: -1
+                    val vNum = m.optInt("numberInSurah", -1)
+                    if (sNum <= 0 || vNum <= 0) continue
+                    val key = "$sNum:$vNum"
+                    if (seen.add(key)) {
+                        val meta = ALL_SURAHS.getOrNull(sNum - 1) ?: continue
+                        results.add(VerseSearchResult(sNum, vNum, meta.nameTr, "", m.optString("text", "")))
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        searchAlQuranCloud(effectiveQuery)
+        // AI modunda genişletilmiş terim de orijinalden farklıysa onu da ara
+        if (isAiMode && effectiveQuery != query && results.size < size) {
+            searchAlQuranCloud(query)
+        }
+
+        // 2. quran.com — yedek (özellikle Arapça terim aramaları için)
+        if (results.size < 3) {
+            try {
+                val encoded = java.net.URLEncoder.encode(effectiveQuery, "UTF-8")
+                val url = "https://api.quran.com/api/v4/search?q=$encoded&size=$size&page=1&language=tr"
+                val conn = (URL(url).openConnection() as HttpURLConnection).also {
+                    it.connectTimeout = 12_000
+                    it.readTimeout = 20_000
+                    it.setRequestProperty("Accept", "application/json")
+                }
+                if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                    val json = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8)).use { it.readText() }
+                    val arr = JSONObject(json).optJSONObject("search")?.optJSONArray("results")
+                    if (arr != null) {
+                        for (i in 0 until arr.length()) {
+                            if (results.size >= size) break
+                            val r = arr.getJSONObject(i)
+                            val parts = r.optString("verse_key", "").split(":")
+                            if (parts.size != 2) continue
+                            val sNum = parts[0].toIntOrNull() ?: continue
+                            val vNum = parts[1].toIntOrNull() ?: continue
+                            val key = "$sNum:$vNum"
+                            if (seen.add(key)) {
+                                val meta = ALL_SURAHS.getOrNull(sNum - 1) ?: continue
+                                val translationsArr = r.optJSONArray("translations")
+                                val trText = if (translationsArr != null && translationsArr.length() > 0)
+                                    stripHtml(translationsArr.getJSONObject(0).optString("text", ""))
+                                else ""
+                                results.add(VerseSearchResult(sNum, vNum, meta.nameTr, r.optString("text", ""), trText))
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        results
     }
 
 /**
@@ -654,7 +746,7 @@ private fun VerseSearchContent(onSelect: (Int) -> Unit, isAiMode: Boolean) {
         scope.launch {
             isSearching = true
             hasSearched = true
-            results = searchVerses(query)
+            results = searchVerses(query, isAiMode = isAiMode)
             isSearching = false
         }
     }
@@ -747,17 +839,43 @@ private fun VerseSearchContent(onSelect: (Int) -> Unit, isAiMode: Boolean) {
             }
         }
 
-        // Sonuç başlığı
+        // Sonuç başlığı / ipucu
         if (hasSearched && !isSearching) {
-            item {
-                Text(
-                    text = if (results.isEmpty()) "Sonuç bulunamadı"
-                           else if (isAiMode) "✨ ${results.size} ilgili ayet bulundu"
-                           else "🔍 ${results.size} ayet bulundu",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (results.isEmpty()) MaterialTheme.colorScheme.error else Green700,
-                    fontWeight = FontWeight.SemiBold
-                )
+            if (results.isEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "Sonuç bulunamadı",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = if (isAiMode)
+                                "İpucu: Kur'an'da kullanılan kelimelerle deneyin.\nÖrnek: alkol → içki, faiz → riba, oruç, namaz, sabır, şükür…"
+                            else
+                                "İpucu: Meal metninde geçen kelimeyi deneyin.\nÖrnek: 'içki', 'sabır', 'tövbe', 'adalet', 'infak'",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            lineHeight = 18.sp
+                        )
+                    }
+                }
+            } else {
+                item {
+                    Text(
+                        text = if (isAiMode) "✨ ${results.size} ilgili ayet bulundu"
+                               else "🔍 ${results.size} ayet bulundu",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Green700,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
 
