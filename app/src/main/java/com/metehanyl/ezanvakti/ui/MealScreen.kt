@@ -603,11 +603,11 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
     }
 
 /**
- * Kur'an sorusunu Claude Haiku API kullanarak yanıtlar.
- * İlgili ayetler önce searchVerses() ile bulunur; Claude modeli ayetleri bağlam
+ * Kur'an sorusunu Google Gemini API kullanarak yanıtlar (ücretsiz).
+ * İlgili ayetler önce searchVerses() ile bulunur; Gemini modeli ayetleri bağlam
  * olarak kullanarak Türkçe cevap + [SureNo:AyetNo] referansları oluşturur.
  */
-private suspend fun callClaudeApi(
+private suspend fun callGeminiApi(
     question: String,
     contextVerses: List<VerseSearchResult>,
     apiKey: String
@@ -619,27 +619,42 @@ private suspend fun callClaudeApi(
         "Ayetlere mutlaka [SureNo:AyetNo] formatında referans ver (örnek: [2:183]). " +
         "Yalnızca verilen ayet metinlerini kaynak olarak kullan. Yanıtı kısa ve net tut."
     val userMsg = "İlgili ayetler:\n$verseCtx\n\nSoru: $question"
+    val fullPrompt = "$system\n\n$userMsg"
     val reqBody = JSONObject().apply {
-        put("model", "claude-haiku-4-5")
-        put("max_tokens", 800)
-        put("system", system)
-        put("messages", JSONArray().apply {
-            put(JSONObject().apply { put("role", "user"); put("content", userMsg) })
+        put("contents", JSONArray().apply {
+            put(JSONObject().apply {
+                put("parts", JSONArray().apply {
+                    put(JSONObject().apply { put("text", fullPrompt) })
+                })
+            })
         })
     }.toString()
-    val conn = (URL("https://api.anthropic.com/v1/messages").openConnection() as HttpURLConnection).apply {
+    val apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey"
+    val conn = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
         requestMethod = "POST"
         setRequestProperty("Content-Type", "application/json")
-        setRequestProperty("x-api-key", apiKey)
-        setRequestProperty("anthropic-version", "2023-06-01")
         connectTimeout = 30_000; readTimeout = 60_000; doOutput = true
     }
     conn.outputStream.use { it.write(reqBody.toByteArray(Charsets.UTF_8)) }
-    if (conn.responseCode != 200) {
-        throw Exception(if (conn.responseCode == 401) "API anahtarı geçersiz. Lütfen kontrol edin." else "API hatası: ${conn.responseCode}")
+    val code = conn.responseCode
+    if (code != 200) {
+        val errBody = try { conn.errorStream?.bufferedReader()?.readText() ?: "" } catch (_: Exception) { "" }
+        throw Exception(
+            when {
+                code == 400 && errBody.contains("API_KEY") -> "API anahtarı geçersiz. Lütfen kontrol edin."
+                code == 403 -> "API anahtarı geçersiz veya yetkisiz."
+                else -> "API hatası: $code"
+            }
+        )
     }
     val json = conn.inputStream.bufferedReader(Charsets.UTF_8).readText()
-    val answerText = JSONObject(json).getJSONArray("content").getJSONObject(0).getString("text")
+    val answerText = JSONObject(json)
+        .getJSONArray("candidates")
+        .getJSONObject(0)
+        .getJSONObject("content")
+        .getJSONArray("parts")
+        .getJSONObject(0)
+        .getString("text")
     val refPat = Regex("""\[(\d+):(\d+)\]""")
     val refVerses = refPat.findAll(answerText).mapNotNull { m ->
         val s = m.groupValues[1].toIntOrNull() ?: return@mapNotNull null
@@ -1084,7 +1099,7 @@ private fun QuranQAContent(onSelect: (Int) -> Unit) {
             isAsking = true; errorMsg = null; answer = null
             try {
                 val verses = searchVerses(question, size = 8, isAiMode = true)
-                answer = callClaudeApi(question, verses, apiKey)
+                answer = callGeminiApi(question, verses, apiKey)
             } catch (e: Exception) {
                 errorMsg = e.message ?: "Bir hata oluştu."
             }
@@ -1141,13 +1156,13 @@ private fun QuranQAContent(onSelect: (Int) -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            "🔑 Anthropic API Anahtarı",
+                            "🔑 Google Gemini API Anahtarı",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            "Bu özellik için Claude AI kullanılır. console.anthropic.com adresinden " +
-                            "ücretsiz deneme kredisiyle başlayabilirsin.",
+                            "Bu özellik ücretsiz Google Gemini AI kullanır. " +
+                            "aistudio.google.com adresine Google hesabınla gir → \"Get API Key\" → kopyala.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1155,7 +1170,7 @@ private fun QuranQAContent(onSelect: (Int) -> Unit) {
                             value = keyInput,
                             onValueChange = { keyInput = it },
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text("sk-ant-...") },
+                            label = { Text("AIzaSy...") },
                             singleLine = true,
                             shape = RoundedCornerShape(10.dp)
                         )
