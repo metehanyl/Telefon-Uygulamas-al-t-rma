@@ -629,10 +629,15 @@ private suspend fun callGeminiApi(
             })
         })
     }.toString()
-    val apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey"
+    val isAuthKey = apiKey.startsWith("AQ.")
+    val apiUrl = if (isAuthKey)
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+    else
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey"
     val conn = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
         requestMethod = "POST"
         setRequestProperty("Content-Type", "application/json")
+        if (isAuthKey) setRequestProperty("Authorization", "Bearer $apiKey")
         connectTimeout = 30_000; readTimeout = 60_000; doOutput = true
     }
     conn.outputStream.use { it.write(reqBody.toByteArray(Charsets.UTF_8)) }
@@ -642,8 +647,10 @@ private suspend fun callGeminiApi(
         throw Exception(
             when {
                 code == 400 && errBody.contains("API_KEY") -> "API anahtarı geçersiz. Lütfen kontrol edin."
-                code == 403 -> "API anahtarı geçersiz veya yetkisiz."
-                else -> "API hatası: $code"
+                code == 401 -> "API anahtarı geçersiz veya süresi dolmuş."
+                code == 403 -> "API anahtarı yetkisiz. Yeni anahtar oluşturun."
+                code == 404 -> "Model bulunamadı. API anahtarınızı kontrol edin."
+                else -> "API hatası: $code\n$errBody"
             }
         )
     }
