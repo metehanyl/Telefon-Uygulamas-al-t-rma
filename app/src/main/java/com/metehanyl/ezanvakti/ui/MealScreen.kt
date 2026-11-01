@@ -74,6 +74,7 @@ import androidx.compose.ui.unit.sp
 import com.metehanyl.ezanvakti.ui.theme.Green700
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -127,7 +128,13 @@ data class VerseSearchResult(
 )
 
 /** Sure listesi ekranı modu */
-enum class SurahListMode { SURELER, AYET_ARA, AI_ARA }
+enum class SurahListMode { SURELER, AYET_ARA, AI_ARA, SORU_SOR }
+
+/** Kur'an meali soru-cevap yanıtı */
+data class QuranAnswer(
+    val text: String,
+    val verses: List<VerseSearchResult>
+)
 
 // ─── Kelime verisi önbelleği (Sureler sekmesiyle paylaşılır) ──────────────────
 
@@ -466,6 +473,7 @@ val ALL_SURAHS: List<SurahMeta> = listOf(
 private const val PREFS_NAME = "meal_prefs"
 private const val KEY_BM_SURAH = "bookmark_surah"
 private const val KEY_BM_VERSE = "bookmark_verse"
+private const val KEY_ANTHROPIC_API = "anthropic_api_key"
 
 private fun loadBookmark(context: Context): MealBookmark? {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -594,6 +602,55 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
         SurahContent(meta, allVerses)
     }
 
+/**
+ * Kur'an sorusunu Claude Haiku API kullanarak yanıtlar.
+ * İlgili ayetler önce searchVerses() ile bulunur; Claude modeli ayetleri bağlam
+ * olarak kullanarak Türkçe cevap + [SureNo:AyetNo] referansları oluşturur.
+ */
+private suspend fun callClaudeApi(
+    question: String,
+    contextVerses: List<VerseSearchResult>,
+    apiKey: String
+): QuranAnswer = withContext(Dispatchers.IO) {
+    val verseCtx = contextVerses.take(8).joinToString("\n") {
+        "[${it.surahNumber}:${it.verseNumber}] ${it.surahNameTr}: ${it.turkish}"
+    }
+    val system = "Sen Kur'an meali uzmanı bir asistansın. Soruları Türkçe yanıtla. " +
+        "Ayetlere mutlaka [SureNo:AyetNo] formatında referans ver (örnek: [2:183]). " +
+        "Yalnızca verilen ayet metinlerini kaynak olarak kullan. Yanıtı kısa ve net tut."
+    val userMsg = "İlgili ayetler:\n$verseCtx\n\nSoru: $question"
+    val reqBody = JSONObject().apply {
+        put("model", "claude-haiku-4-5")
+        put("max_tokens", 800)
+        put("system", system)
+        put("messages", JSONArray().apply {
+            put(JSONObject().apply { put("role", "user"); put("content", userMsg) })
+        })
+    }.toString()
+    val conn = (URL("https://api.anthropic.com/v1/messages").openConnection() as HttpURLConnection).apply {
+        requestMethod = "POST"
+        setRequestProperty("Content-Type", "application/json")
+        setRequestProperty("x-api-key", apiKey)
+        setRequestProperty("anthropic-version", "2023-06-01")
+        connectTimeout = 30_000; readTimeout = 60_000; doOutput = true
+    }
+    conn.outputStream.use { it.write(reqBody.toByteArray(Charsets.UTF_8)) }
+    if (conn.responseCode != 200) {
+        throw Exception(if (conn.responseCode == 401) "API anahtarı geçersiz. Lütfen kontrol edin." else "API hatası: ${conn.responseCode}")
+    }
+    val json = conn.inputStream.bufferedReader(Charsets.UTF_8).readText()
+    val answerText = JSONObject(json).getJSONArray("content").getJSONObject(0).getString("text")
+    val refPat = Regex("""\[(\d+):(\d+)\]""")
+    val refVerses = refPat.findAll(answerText).mapNotNull { m ->
+        val s = m.groupValues[1].toIntOrNull() ?: return@mapNotNull null
+        val v = m.groupValues[2].toIntOrNull() ?: return@mapNotNull null
+        val meta = ALL_SURAHS.getOrNull(s - 1) ?: return@mapNotNull null
+        contextVerses.find { it.surahNumber == s && it.verseNumber == v }
+            ?: VerseSearchResult(s, v, meta.nameTr, "", "")
+    }.distinctBy { "${it.surahNumber}:${it.verseNumber}" }.toList()
+    QuranAnswer(answerText, refVerses)
+}
+
 // ─── Composable: Ana sekme ───────────────────────────────────────────────────
 
 @Composable
@@ -620,17 +677,19 @@ fun MealTabContent() {
 
 // ─── Composable: Sure listesi ─────────────────────────────────────────────────
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun SurahListView(bookmark: MealBookmark?, onSelect: (Int) -> Unit) {
     var listMode by rememberSaveable { mutableStateOf(SurahListMode.SURELER) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Mod seçici chips
-        Row(
+        // Mod seçici chips (FlowRow — 4 chip sığmazsa alt satıra geçer)
+        FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             FilterChip(
                 selected = listMode == SurahListMode.SURELER,
@@ -659,6 +718,15 @@ private fun SurahListView(bookmark: MealBookmark?, onSelect: (Int) -> Unit) {
                     selectedLabelColor = Color.White
                 )
             )
+            FilterChip(
+                selected = listMode == SurahListMode.SORU_SOR,
+                onClick = { listMode = SurahListMode.SORU_SOR },
+                label = { Text("💬 Soru Sor", style = MaterialTheme.typography.labelMedium) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Green700,
+                    selectedLabelColor = Color.White
+                )
+            )
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
@@ -666,6 +734,7 @@ private fun SurahListView(bookmark: MealBookmark?, onSelect: (Int) -> Unit) {
             SurahListMode.SURELER -> SurahBrowserContent(bookmark = bookmark, onSelect = onSelect)
             SurahListMode.AYET_ARA -> VerseSearchContent(onSelect = onSelect, isAiMode = false)
             SurahListMode.AI_ARA -> VerseSearchContent(onSelect = onSelect, isAiMode = true)
+            SurahListMode.SORU_SOR -> QuranQAContent(onSelect = onSelect)
         }
     }
 }
@@ -990,6 +1059,285 @@ private fun VerseSearchResultCard(
                 )
             }
         }
+    }
+}
+
+// ─── Composable: Soru Sor (Claude AI destekli Q&A) ───────────────────────────
+
+@Composable
+private fun QuranQAContent(onSelect: (Int) -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
+    var apiKey by rememberSaveable { mutableStateOf(prefs.getString(KEY_ANTHROPIC_API, "") ?: "") }
+    var keyInput by rememberSaveable { mutableStateOf(apiKey) }
+    var showKeyEdit by rememberSaveable { mutableStateOf(apiKey.isBlank()) }
+    var question by rememberSaveable { mutableStateOf("") }
+    var isAsking by remember { mutableStateOf(false) }
+    var answer by remember { mutableStateOf<QuranAnswer?>(null) }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
+    var expandedVerse by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    val scope = rememberCoroutineScope()
+
+    fun doAsk() {
+        if (question.isBlank() || isAsking) return
+        scope.launch {
+            isAsking = true; errorMsg = null; answer = null
+            try {
+                val verses = searchVerses(question, size = 8, isAiMode = true)
+                answer = callClaudeApi(question, verses, apiKey)
+            } catch (e: Exception) {
+                errorMsg = e.message ?: "Bir hata oluştu."
+            }
+            isAsking = false
+        }
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item { Spacer(Modifier.height(8.dp)) }
+
+        // Açıklama başlık kartı
+        item {
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Green700.copy(alpha = 0.1f))
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("💬", style = MaterialTheme.typography.titleLarge)
+                    Column {
+                        Text(
+                            "Kur'an'dan Soru Sor",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Green700
+                        )
+                        Text(
+                            "Meal hakkında soru sor; ilgili ayetler referans gösterilerek yanıtlansın.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+
+        // API key kurulum / düzenleme
+        if (showKeyEdit || apiKey.isBlank()) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "🔑 Anthropic API Anahtarı",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            "Bu özellik için Claude AI kullanılır. console.anthropic.com adresinden " +
+                            "ücretsiz deneme kredisiyle başlayabilirsin.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OutlinedTextField(
+                            value = keyInput,
+                            onValueChange = { keyInput = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("sk-ant-...") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = {
+                                    val trimmed = keyInput.trim()
+                                    if (trimmed.isNotBlank()) {
+                                        apiKey = trimmed
+                                        prefs.edit().putString(KEY_ANTHROPIC_API, trimmed).apply()
+                                        showKeyEdit = false
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                enabled = keyInput.isNotBlank()
+                            ) { Text("Kaydet") }
+                            if (apiKey.isNotBlank()) {
+                                Text(
+                                    "Vazgeç",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Green700,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier
+                                        .clickable { showKeyEdit = false }
+                                        .padding(8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Soru alanı + Sor butonu (sadece API key ayarlıysa)
+        if (apiKey.isNotBlank() && !showKeyEdit) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = question,
+                        onValueChange = { question = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
+                            Text(
+                                "Örnek: Oruç tutmak farz mı? Zekatın şartları nelerdir? Fatiha'yı yorumla.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        label = { Text("Sorunuzu yazın") },
+                        minLines = 2,
+                        maxLines = 5,
+                        shape = RoundedCornerShape(14.dp),
+                        trailingIcon = {
+                            if (question.isNotBlank()) {
+                                IconButton(onClick = {
+                                    question = ""; answer = null; errorMsg = null
+                                }) { Icon(Icons.Default.Clear, "Temizle") }
+                            }
+                        }
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = { doAsk() },
+                            modifier = Modifier.weight(1f),
+                            enabled = question.isNotBlank() && !isAsking
+                        ) {
+                            if (isAsking) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text("Yanıtlanıyor…")
+                            } else {
+                                Text("💬 Sor")
+                            }
+                        }
+                        IconButton(onClick = { keyInput = apiKey; showKeyEdit = true }) {
+                            Icon(
+                                Icons.Default.Refresh,
+                                "API anahtarını değiştir",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Hata mesajı
+            if (errorMsg != null) {
+                item {
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.ErrorOutline, null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(20.dp))
+                            Text(errorMsg!!,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer)
+                        }
+                    }
+                }
+            }
+
+            // Yanıt kartı
+            val ans = answer
+            if (ans != null) {
+                item {
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text("💬", style = MaterialTheme.typography.labelLarge)
+                                Text(
+                                    "Yanıt",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Green700
+                                )
+                            }
+                            HorizontalDivider(color = Green700.copy(alpha = 0.2f))
+                            Text(
+                                ans.text,
+                                style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+
+                if (ans.verses.isNotEmpty()) {
+                    item {
+                        Text(
+                            "📖 Referans Ayetler (${ans.verses.size})",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Green700,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                    items(ans.verses, key = { "${it.surahNumber}_qa_${it.verseNumber}" }) { v ->
+                        val isExp = expandedVerse == (v.surahNumber to v.verseNumber)
+                        VerseSearchResultCard(
+                            result = v,
+                            isExpanded = isExp,
+                            onToggleExpand = {
+                                expandedVerse = if (isExp) null else (v.surahNumber to v.verseNumber)
+                            },
+                            onGoToSurah = { onSelect(v.surahNumber) }
+                        )
+                    }
+                }
+            }
+        }
+
+        item { Spacer(Modifier.height(24.dp)) }
     }
 }
 
