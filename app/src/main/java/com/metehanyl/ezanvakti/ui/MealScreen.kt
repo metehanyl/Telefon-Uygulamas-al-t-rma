@@ -629,7 +629,7 @@ private suspend fun callGeminiApi(
             })
         })
     }.toString()
-    val apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+    val apiUrl = "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent"
     val conn = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
         requestMethod = "POST"
         setRequestProperty("Content-Type", "application/json")
