@@ -629,15 +629,11 @@ private suspend fun callGeminiApi(
             })
         })
     }.toString()
-    val isAuthKey = apiKey.startsWith("AQ.")
-    val apiUrl = if (isAuthKey)
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-    else
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey"
+    val apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
     val conn = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
         requestMethod = "POST"
         setRequestProperty("Content-Type", "application/json")
-        if (isAuthKey) setRequestProperty("Authorization", "Bearer $apiKey")
+        setRequestProperty("x-goog-api-key", apiKey)
         connectTimeout = 30_000; readTimeout = 60_000; doOutput = true
     }
     conn.outputStream.use { it.write(reqBody.toByteArray(Charsets.UTF_8)) }
