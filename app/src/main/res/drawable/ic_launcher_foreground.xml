@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Ön plan: Beyaz hilal + altın yıldız (İslami sembol)
+    Tuval: 108×108dp  |  Güvenli alan: (18,18)–(90,90)
+    Hilal: dış çember (44,54,r=26) & iç çember (55,54,r=23) kesişim noktaları arasında yay
+    Yıldız: merkez (73,32), dış r=7, iç r=3
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Beyaz hilal (iki yay arasındaki bölge) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M56,31 A26,26 0 1,0 56,77 A23,23 0 1,1 56,31 Z" />
+
+    <!-- Altın beş köşeli yıldız -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M73,25 L74.8,29.6 L79.7,29.8 L75.9,32.9 L77.1,37.7 L73,35 L68.9,37.7 L70.2,32.9 L66.3,29.8 L71.2,29.6 Z" />
+
+</vector>
