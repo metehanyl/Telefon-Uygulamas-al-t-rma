@@ -602,16 +602,36 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
         SurahContent(meta, allVerses)
     }
 
+/** Groq'tan mevcut chat modellerini çeker, ilkini döner. */
+private fun fetchGroqModel(apiKey: String): String {
+    val conn = (URL("https://api.groq.com/openai/v1/models").openConnection() as HttpURLConnection).apply {
+        requestMethod = "GET"
+        setRequestProperty("Authorization", "Bearer $apiKey")
+        connectTimeout = 10_000; readTimeout = 10_000
+    }
+    if (conn.responseCode != 200) return "llama-3.3-70b-versatile"
+    val json = JSONObject(conn.inputStream.bufferedReader(Charsets.UTF_8).readText())
+    val arr = json.getJSONArray("data")
+    val chatModels = (0 until arr.length())
+        .map { arr.getJSONObject(it).getString("id") }
+        .filter { id ->
+            !id.contains("whisper") && !id.contains("tts") &&
+            !id.contains("guard") && !id.contains("tool-use")
+        }
+        .sortedByDescending { it }
+    return chatModels.firstOrNull() ?: "llama-3.3-70b-versatile"
+}
+
 /**
- * Kur'an sorusunu Groq API (ücretsiz, llama-3.3-70b) kullanarak yanıtlar.
- * İlgili ayetler önce searchVerses() ile bulunur; model ayetleri bağlam olarak
- * kullanarak Türkçe cevap + [SureNo:AyetNo] referansları oluşturur.
+ * Kur'an sorusunu Groq API kullanarak yanıtlar (ücretsiz).
+ * Kullanılacak model otomatik olarak Groq'tan sorgulanır.
  */
 private suspend fun callGeminiApi(
     question: String,
     contextVerses: List<VerseSearchResult>,
     apiKey: String
 ): QuranAnswer = withContext(Dispatchers.IO) {
+    val model = fetchGroqModel(apiKey)
     val verseCtx = contextVerses.take(8).joinToString("\n") {
         "[${it.surahNumber}:${it.verseNumber}] ${it.surahNameTr}: ${it.turkish}"
     }
@@ -620,22 +640,15 @@ private suspend fun callGeminiApi(
         "Yalnızca verilen ayet metinlerini kaynak olarak kullan. Yanıtı kısa ve net tut."
     val userMsg = "İlgili ayetler:\n$verseCtx\n\nSoru: $question"
     val reqBody = JSONObject().apply {
-        put("model", "gemma2-9b-it")
+        put("model", model)
         put("max_tokens", 512)
         put("temperature", 0.3)
         put("messages", JSONArray().apply {
-            put(JSONObject().apply {
-                put("role", "system")
-                put("content", systemMsg)
-            })
-            put(JSONObject().apply {
-                put("role", "user")
-                put("content", userMsg)
-            })
+            put(JSONObject().apply { put("role", "system"); put("content", systemMsg) })
+            put(JSONObject().apply { put("role", "user"); put("content", userMsg) })
         })
     }.toString()
-    val apiUrl = "https://api.groq.com/openai/v1/chat/completions"
-    val conn = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
+    val conn = (URL("https://api.groq.com/openai/v1/chat/completions").openConnection() as HttpURLConnection).apply {
         requestMethod = "POST"
         setRequestProperty("Content-Type", "application/json")
         setRequestProperty("Authorization", "Bearer $apiKey")
@@ -647,7 +660,6 @@ private suspend fun callGeminiApi(
         val errBody = try { conn.errorStream?.bufferedReader()?.readText() ?: "" } catch (_: Exception) { "" }
         throw Exception(
             when {
-                code == 400 -> "Geçersiz istek. API anahtarını kontrol edin.\n$errBody"
                 code == 401 -> "API anahtarı geçersiz. console.groq.com'dan yeni anahtar alın."
                 code == 403 -> "API anahtarı yetkisiz. Yeni anahtar oluşturun."
                 code == 429 -> "Limit aşıldı. Lütfen 1 dakika bekleyin."
