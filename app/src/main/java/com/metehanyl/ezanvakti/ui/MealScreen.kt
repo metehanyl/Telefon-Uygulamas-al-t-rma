@@ -603,9 +603,9 @@ private suspend fun fetchSurahContent(number: Int, meta: SurahMeta): SurahConten
     }
 
 /**
- * Kur'an sorusunu Google Gemini API kullanarak yanıtlar (ücretsiz).
- * İlgili ayetler önce searchVerses() ile bulunur; Gemini modeli ayetleri bağlam
- * olarak kullanarak Türkçe cevap + [SureNo:AyetNo] referansları oluşturur.
+ * Kur'an sorusunu Groq API (ücretsiz, llama-3.3-70b) kullanarak yanıtlar.
+ * İlgili ayetler önce searchVerses() ile bulunur; model ayetleri bağlam olarak
+ * kullanarak Türkçe cevap + [SureNo:AyetNo] referansları oluşturur.
  */
 private suspend fun callGeminiApi(
     question: String,
@@ -615,25 +615,30 @@ private suspend fun callGeminiApi(
     val verseCtx = contextVerses.take(8).joinToString("\n") {
         "[${it.surahNumber}:${it.verseNumber}] ${it.surahNameTr}: ${it.turkish}"
     }
-    val system = "Sen Kur'an meali uzmanı bir asistansın. Soruları Türkçe yanıtla. " +
+    val systemMsg = "Sen Kur'an meali uzmanı bir asistansın. Soruları Türkçe yanıtla. " +
         "Ayetlere mutlaka [SureNo:AyetNo] formatında referans ver (örnek: [2:183]). " +
         "Yalnızca verilen ayet metinlerini kaynak olarak kullan. Yanıtı kısa ve net tut."
     val userMsg = "İlgili ayetler:\n$verseCtx\n\nSoru: $question"
-    val fullPrompt = "$system\n\n$userMsg"
     val reqBody = JSONObject().apply {
-        put("contents", JSONArray().apply {
+        put("model", "llama-3.3-70b-versatile")
+        put("max_tokens", 512)
+        put("temperature", 0.3)
+        put("messages", JSONArray().apply {
             put(JSONObject().apply {
-                put("parts", JSONArray().apply {
-                    put(JSONObject().apply { put("text", fullPrompt) })
-                })
+                put("role", "system")
+                put("content", systemMsg)
+            })
+            put(JSONObject().apply {
+                put("role", "user")
+                put("content", userMsg)
             })
         })
     }.toString()
-    val apiUrl = "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent"
+    val apiUrl = "https://api.groq.com/openai/v1/chat/completions"
     val conn = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
         requestMethod = "POST"
         setRequestProperty("Content-Type", "application/json")
-        setRequestProperty("x-goog-api-key", apiKey)
+        setRequestProperty("Authorization", "Bearer $apiKey")
         connectTimeout = 30_000; readTimeout = 60_000; doOutput = true
     }
     conn.outputStream.use { it.write(reqBody.toByteArray(Charsets.UTF_8)) }
@@ -642,22 +647,20 @@ private suspend fun callGeminiApi(
         val errBody = try { conn.errorStream?.bufferedReader()?.readText() ?: "" } catch (_: Exception) { "" }
         throw Exception(
             when {
-                code == 400 && errBody.contains("API_KEY") -> "API anahtarı geçersiz. Lütfen kontrol edin."
-                code == 401 -> "API anahtarı geçersiz veya süresi dolmuş."
+                code == 400 -> "Geçersiz istek. API anahtarını kontrol edin.\n$errBody"
+                code == 401 -> "API anahtarı geçersiz. console.groq.com'dan yeni anahtar alın."
                 code == 403 -> "API anahtarı yetkisiz. Yeni anahtar oluşturun."
-                code == 404 -> "Model bulunamadı. API anahtarınızı kontrol edin."
+                code == 429 -> "Limit aşıldı. Lütfen 1 dakika bekleyin."
                 else -> "API hatası: $code\n$errBody"
             }
         )
     }
     val json = conn.inputStream.bufferedReader(Charsets.UTF_8).readText()
     val answerText = JSONObject(json)
-        .getJSONArray("candidates")
+        .getJSONArray("choices")
         .getJSONObject(0)
-        .getJSONObject("content")
-        .getJSONArray("parts")
-        .getJSONObject(0)
-        .getString("text")
+        .getJSONObject("message")
+        .getString("content")
     val refPat = Regex("""\[(\d+):(\d+)\]""")
     val refVerses = refPat.findAll(answerText).mapNotNull { m ->
         val s = m.groupValues[1].toIntOrNull() ?: return@mapNotNull null
@@ -1159,13 +1162,13 @@ private fun QuranQAContent(onSelect: (Int) -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            "🔑 Google Gemini API Anahtarı",
+                            "🔑 Groq API Anahtarı",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            "Bu özellik ücretsiz Google Gemini AI kullanır. " +
-                            "aistudio.google.com adresine Google hesabınla gir → \"Get API Key\" → kopyala.",
+                            "Bu özellik ücretsiz Groq AI (Llama) kullanır. " +
+                            "console.groq.com adresine gir → \"Create API key\" → kopyala → gsk_... ile başlar.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1173,7 +1176,7 @@ private fun QuranQAContent(onSelect: (Int) -> Unit) {
                             value = keyInput,
                             onValueChange = { keyInput = it },
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text("AIzaSy...") },
+                            label = { Text("gsk_...") },
                             singleLine = true,
                             shape = RoundedCornerShape(10.dp)
                         )

@@ -11,8 +11,8 @@ android {
         applicationId = "com.metehanyl.ezanvakti"
         minSdk = 26
         targetSdk = 34
-        versionCode = 38
-        versionName = "4.7"
+        versionCode = 39
+        versionName = "4.8"
     }
 
     signingConfigs {
