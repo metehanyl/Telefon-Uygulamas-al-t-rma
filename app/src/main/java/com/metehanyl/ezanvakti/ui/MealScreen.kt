@@ -620,7 +620,7 @@ private suspend fun callGeminiApi(
         "Yalnızca verilen ayet metinlerini kaynak olarak kullan. Yanıtı kısa ve net tut."
     val userMsg = "İlgili ayetler:\n$verseCtx\n\nSoru: $question"
     val reqBody = JSONObject().apply {
-        put("model", "llama-3.3-70b-versatile")
+        put("model", "llama3-70b-8192")
         put("max_tokens", 512)
         put("temperature", 0.3)
         put("messages", JSONArray().apply {
